@@ -1,0 +1,252 @@
+[
+    {
+        "sentence": "Starlight is the language of the night",
+        "answer": "Night",
+        "question": "What is starlight the language of?"
+    },
+    {
+        "sentence": "The river carries secrets",
+        "answer": "Secrets",
+        "question": "What does the river carry?"
+    },
+    {
+        "sentence": "Raindrops are the tears of the sky",
+        "answer": "Sky",
+        "question": "What are raindrops the tears of?"
+    },
+    {
+        "sentence": "Pages hide the past",
+        "answer": "Past",
+        "question": "What do pages hide?"
+    },
+    {
+        "sentence": "Petals are the laughter of spring",
+        "answer": "Spring",
+        "question": "What are petals the laughter of?"
+    },
+    {
+        "sentence": "Candlelight is the hope in darkness",
+        "answer": "Darkness",
+        "question": "What is candlelight the hope in?"
+    },
+    {
+        "sentence": "The wind is the singer of the wilderness",
+        "answer": "Wilderness",
+        "question": "What is the wind the singer of?"
+    },
+    {
+        "sentence": "Snowflakes are the poetry of winter",
+        "answer": "Winter",
+        "question": "What are snowflakes the poetry of?"
+    },
+    {
+        "sentence": "Sand is the memory of the desert",
+        "answer": "Desert",
+        "question": "What is sand the memory of?"
+    },
+    {
+        "sentence": "Waves are the heartbeat of the ocean",
+        "answer": "Ocean",
+        "question": "What are waves the heartbeat of?"
+    },
+    {
+        "sentence": "Shadows are the companions of the night",
+        "answer": "Night",
+        "question": "What are shadows the companions of?"
+    },
+    {
+        "sentence": "Dew is the kiss of morning light",
+        "answer": "Morning light",
+        "question": "What is dew the kiss of?"
+    },
+    {
+        "sentence": "Stars are the eyes of the universe",
+        "answer": "Universe",
+        "question": "What are stars the eyes of?"
+    },
+    {
+        "sentence": "Flame is the gentleness in the cold",
+        "answer": "Cold",
+        "question": "What is flame the gentleness in?"
+    },
+    {
+        "sentence": "Leaves are the color of autumn",
+        "answer": "Autumn",
+        "question": "What are leaves the color of?"
+    },
+    {
+        "sentence": "Dreams are the escape from reality",
+        "answer": "Reality",
+        "question": "What are dreams the escape from?"
+    },
+    {
+        "sentence": "Fog is the veil of the mountains and rivers",
+        "answer": "Mountains and rivers",
+        "question": "What is fog the veil of?"
+    },
+    {
+        "sentence": "Butterflies are the love letters of flowers",
+        "answer": "Flowers",
+        "question": "What are butterflies the love letters of?"
+    },
+    {
+        "sentence": "Time is the painter of memories",
+        "answer": "Memories",
+        "question": "What is time the painter of?"
+    },
+    {
+        "sentence": "The sun is the lighthouse of the day",
+        "answer": "Day",
+        "question": "What is the sun the lighthouse of?"
+    },
+    {
+        "sentence": "Clouds are the dreams of the sky",
+        "answer": "Dreams",
+        "question": "What are clouds the dreams of?"
+    },
+    {
+        "sentence": "Bees are the messengers of spring",
+        "answer": "Spring",
+        "question": "What are bees the messengers of?"
+    },
+    {
+        "sentence": "The night sky is the ocean of longing",
+        "answer": "Longing",
+        "question": "What is the night sky the ocean of?"
+    },
+    {
+        "sentence": "Rain is the liberation of the clouds",
+        "answer": "Clouds",
+        "question": "What is rain the liberation of?"
+    },
+    {
+        "sentence": "Morning frost is the blessing of winter days",
+        "answer": "Winter days",
+        "question": "What is morning frost the blessing of?"
+    },
+    {
+        "sentence": "The stove is the guardian of winter nights",
+        "answer": "Winter nights",
+        "question": "What is the stove the guardian of?"
+    },
+    {
+        "sentence": "Star maps are the guides of the night sky",
+        "answer": "Night sky",
+        "question": "What are star maps the guides of?"
+    },
+    {
+        "sentence": "Old trees are the witnesses of time",
+        "answer": "Time",
+        "question": "What are old trees the witnesses of?"
+    },
+    {
+        "sentence": "Smoke is the illusion of autumn days",
+        "answer": "Autumn days",
+        "question": "What is smoke the illusion of?"
+    },
+    {
+        "sentence": "Snow is the crown of mountain peaks",
+        "answer": "Mountain peaks",
+        "question": "What is snow the crown of?"
+    },
+    {
+        "sentence": "Rainbows are the promise after rain",
+        "answer": "After rain",
+        "question": "What are rainbows the promise of?"
+    },
+    {
+        "sentence": "The hourglass is the prison of time",
+        "answer": "Time",
+        "question": "What is the hourglass the prison of?"
+    },
+    {
+        "sentence": "Mirrors are the illusions of reality",
+        "answer": "Reality",
+        "question": "What are mirrors the illusions of?"
+    },
+    {
+        "sentence": "Moonlight is the gentleness of the night",
+        "answer": "Night",
+        "question": "What is moonlight the gentleness of?"
+    },
+    {
+        "sentence": "Letters are the call of the past",
+        "answer": "Past",
+        "question": "What are letters the call of?"
+    },
+    {
+        "sentence": "Lighthouses are the watchers of the sea",
+        "answer": "Sea",
+        "question": "What are lighthouses the watchers of?"
+    },
+    {
+        "sentence": "The stars are the domain of dreams",
+        "answer": "Dreams",
+        "question": "What are the stars the domain of?"
+    },
+    {
+        "sentence": "Sparks are the birth of creativity",
+        "answer": "Creativity",
+        "question": "What are sparks the birth of?"
+    },
+    {
+        "sentence": "Snowscapes are the tranquility of winter",
+        "answer": "Winter",
+        "question": "What are snowscapes the tranquility of?"
+    },
+    {
+        "sentence": "The beach is the imprint of the sea",
+        "answer": "Sea",
+        "question": "What is the beach the imprint of?"
+    },
+    {
+        "sentence": "Candles are the messengers of the night",
+        "answer": "Night",
+        "question": "What are candles the messengers of?"
+    },
+    {
+        "sentence": "Water droplets are the pearls of dawn",
+        "answer": "Dawn",
+        "question": "What are water droplets the pearls of?"
+    },
+    {
+        "sentence": "Flowers are the smile of the earth",
+        "answer": "Earth",
+        "question": "What are flowers the smile of?"
+    },
+    {
+        "sentence": "The starry sky is the dream of the night",
+        "answer": "Night",
+        "question": "What is the starry sky the dream of?"
+    },
+    {
+        "sentence": "Clouds are the wanderers of the sky",
+        "answer": "Sky",
+        "question": "What are clouds the wanderers of?"
+    },
+    {
+        "sentence": "Morning light is the farewell of the night",
+        "answer": "Night",
+        "question": "What is morning light the farewell of?"
+    },
+    {
+        "sentence": "Deserts are the oceans of solitude",
+        "answer": "Solitude",
+        "question": "What are deserts the oceans of?"
+    },
+    {
+        "sentence": "Rain sounds are the lullabies of the night",
+        "answer": "Night",
+        "question": "What are rain sounds the lullabies of?"
+    },
+    {
+        "sentence": "The Milky Way is the love poem of the universe",
+        "answer": "Universe",
+        "question": "What is the Milky Way the love poem of?"
+    },
+    {
+        "sentence": "Frost is the flowers of the cold night",
+        "answer": "Cold night",
+        "question": "What is frost the flowers of?"
+    }
+]
