@@ -1,0 +1,282 @@
+[
+    {
+        "sentence": "The secret is the key.",
+        "needle": "secret",
+        "answer": "key",
+        "find_question": "What is the secret?",
+        "count_question": "How many secrets are in the article?"
+    },
+    {
+        "sentence": "The treasure is the chest.",
+        "needle": "treasure",
+        "answer": "chest",
+        "find_question": "What is the treasure?",
+        "count_question": "How many treasures are discussed?"
+    },
+    {
+        "sentence": "The tool is the brush.",
+        "needle": "tool",
+        "answer": "brush",
+        "find_question": "What is the tool?",
+        "count_question": "How many tools are mentioned?"
+    },
+    {
+        "sentence": "The ruler is the tree.",
+        "needle": "ruler",
+        "answer": "tree",
+        "find_question": "What is the ruler?",
+        "count_question": "How many rulers are described?"
+    },
+    {
+        "sentence": "The engine is the computer.",
+        "needle": "engine",
+        "answer": "computer",
+        "find_question": "What is the engine?",
+        "count_question": "How many engines are mentioned?"
+    },
+    {
+        "sentence": "The guardian is the owl.",
+        "needle": "guardian",
+        "answer": "owl",
+        "find_question": "Who is the guardian?",
+        "count_question": "How many guardians are described?"
+    },
+    {
+        "sentence": "The hidden is the compass.",
+        "needle": "hidden",
+        "answer": "compass",
+        "find_question": "What is hidden?",
+        "count_question": "How many hidden items are talked about?"
+    },
+    {
+        "sentence": "The container is the vase.",
+        "needle": "container",
+        "answer": "vase",
+        "find_question": "What is the container?",
+        "count_question": "How many containers are mentioned?"
+    },
+    {
+        "sentence": "The light is the lighthouse.",
+        "needle": "light",
+        "answer": "lighthouse",
+        "find_question": "What is the light?",
+        "count_question": "How many lights are noted?"
+    },
+    {
+        "sentence": "The joy is the apple.",
+        "needle": "joy",
+        "answer": "apple",
+        "find_question": "What represents the joy?",
+        "count_question": "How many joys are found?"
+    },
+    {
+        "sentence": "The mystery unveils a banana.",
+        "needle": "mystery",
+        "answer": "banana",
+        "find_question": "What does the mystery unveil?",
+        "count_question": "How many mysteries are in the article?"
+    },
+    {
+        "sentence": "The legend speaks of a sword.",
+        "needle": "legend",
+        "answer": "sword",
+        "find_question": "What does the legend speak of?",
+        "count_question": "How many legends are discussed?"
+    },
+    {
+        "sentence": "The chef uses a knife.",
+        "needle": "chef",
+        "answer": "knife",
+        "find_question": "What does the chef use?",
+        "count_question": "How many times is chef mentioned?"
+    },
+    {
+        "sentence": "The artist paints with a brush.",
+        "needle": "artist",
+        "answer": "brush",
+        "find_question": "What does the artist paint with?",
+        "count_question": "How many artists are described?"
+    },
+    {
+        "sentence": "The magician reveals a rabbit.",
+        "needle": "magician",
+        "answer": "rabbit",
+        "find_question": "What does the magician reveal?",
+        "count_question": "How many magicians are mentioned?"
+    },
+    {
+        "sentence": "The sailor navigates with a compass.",
+        "needle": "sailor",
+        "answer": "compass",
+        "find_question": "What does the sailor navigate with?",
+        "count_question": "How many sailors are described?"
+    },
+    {
+        "sentence": "The story contains a lesson.",
+        "needle": "story",
+        "answer": "lesson",
+        "find_question": "What does the story contain?",
+        "count_question": "How many stories are talked about?"
+    },
+    {
+        "sentence": "The dream shows a door.",
+        "needle": "dream",
+        "answer": "door",
+        "find_question": "What does the dream show?",
+        "count_question": "How many dreams are mentioned?"
+    },
+    {
+        "sentence": "The poem describes a rose.",
+        "needle": "poem",
+        "answer": "rose",
+        "find_question": "What does the poem describe?",
+        "count_question": "How many poems are noted?"
+    },
+    {
+        "sentence": "The holiday features a lantern.",
+        "needle": "holiday",
+        "answer": "lantern",
+        "find_question": "What does the holiday feature?",
+        "count_question": "How many holidays are found?"
+    },
+    {
+        "sentence": "The mystery concludes with a map.",
+        "needle": "mystery",
+        "answer": "map",
+        "find_question": "What does the mystery conclude with?",
+        "count_question": "How many mysteries are in the article?"
+    },
+    {
+        "sentence": "The legend tells of a sword.",
+        "needle": "legend",
+        "answer": "sword",
+        "find_question": "What does the legend tell of?",
+        "count_question": "How many legends are discussed?"
+    },
+    {
+        "sentence": "The painter's essential tool is a brush.",
+        "needle": "tool",
+        "answer": "brush",
+        "find_question": "What is the painter's essential tool?",
+        "count_question": "How many tools are mentioned?"
+    },
+    {
+        "sentence": "The garden's king is an oak.",
+        "needle": "king",
+        "answer": "oak",
+        "find_question": "What is the king of the garden?",
+        "count_question": "How many kings are described?"
+    },
+    {
+        "sentence": "The secret in the drawer is a key.",
+        "needle": "secret",
+        "answer": "key",
+        "find_question": "What is the secret in the drawer?",
+        "count_question": "How many secrets are mentioned?"
+    },
+    {
+        "sentence": "The night's sentinel is an owl.",
+        "needle": "sentinel",
+        "answer": "owl",
+        "find_question": "Who is the night's sentinel?",
+        "count_question": "How many sentinels are described?"
+    },
+    {
+        "sentence": "The pirate's treasure contains a compass.",
+        "needle": "treasure",
+        "answer": "compass",
+        "find_question": "What does the pirate's treasure contain?",
+        "count_question": "How many treasures are talked about?"
+    },
+    {
+        "sentence": "The ancient scroll hides a map.",
+        "needle": "scroll",
+        "answer": "map",
+        "find_question": "What does the ancient scroll hide?",
+        "count_question": "How many scrolls are mentioned?"
+    },
+    {
+        "sentence": "The beacon over the hill is a lighthouse.",
+        "needle": "beacon",
+        "answer": "lighthouse",
+        "find_question": "What is the beacon over the hill?",
+        "count_question": "How many beacons are noted?"
+    },
+    {
+        "sentence": "The fair's highlight is a balloon.",
+        "needle": "highlight",
+        "answer": "balloon",
+        "find_question": "What is the highlight of the fair?",
+        "count_question": "How many highlights are found?"
+    },
+    {
+        "sentence": "The secret reveals a mirror.",
+        "needle": "secret",
+        "answer": "mirror",
+        "find_question": "What does the secret reveal?",
+        "count_question": "How many secrets are mentioned?"
+    },
+    {
+        "sentence": "Happiness contains a photo.",
+        "needle": "happiness",
+        "answer": "photo",
+        "find_question": "What does happiness contain?",
+        "count_question": "How many times is happiness mentioned?"
+    },
+    {
+        "sentence": "Wisdom unlocks a book.",
+        "needle": "wisdom",
+        "answer": "book",
+        "find_question": "What does wisdom unlock?",
+        "count_question": "How many times is wisdom discussed?"
+    },
+    {
+        "sentence": "Freedom leads to a flag.",
+        "needle": "freedom",
+        "answer": "flag",
+        "find_question": "What does freedom lead to?",
+        "count_question": "How many times is freedom mentioned?"
+    },
+    {
+        "sentence": "Innovation sparks a bulb.",
+        "needle": "innovation",
+        "answer": "bulb",
+        "find_question": "What does innovation spark?",
+        "count_question": "How many times is innovation described?"
+    },
+    {
+        "sentence": "Curiosity discovers a fossil.",
+        "needle": "curiosity",
+        "answer": "fossil",
+        "find_question": "What does curiosity discover?",
+        "count_question": "How many times is curiosity mentioned?"
+    },
+    {
+        "sentence": "Trust builds a bridge.",
+        "needle": "trust",
+        "answer": "bridge",
+        "find_question": "What does trust build?",
+        "count_question": "How many times is trust talked about?"
+    },
+    {
+        "sentence": "Courage faces a sword.",
+        "needle": "courage",
+        "answer": "sword",
+        "find_question": "What does courage face?",
+        "count_question": "How many times is courage noted?"
+    },
+    {
+        "sentence": "Adventure leads to a map.",
+        "needle": "adventure",
+        "answer": "map",
+        "find_question": "What does adventure lead to?",
+        "count_question": "How many adventures are found?"
+    },
+    {
+        "sentence": "Creativity paints a canvas.",
+        "needle": "creativity",
+        "answer": "canvas",
+        "find_question": "What does creativity paint?",
+        "count_question": "How many times is creativity mentioned?"
+    }
+]
