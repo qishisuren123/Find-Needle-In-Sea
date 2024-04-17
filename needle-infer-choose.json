@@ -1,0 +1,458 @@
+[
+    {
+        "description": "On a shelf, there are four books arranged from left to right.",
+        "sentence1": "The red book is to the left of the blue book.",
+        "sentence2": "The blue book is to the left of the yellow book.",
+        "sentence3": "The yellow book is to the left of the green book.",
+        "question": "Which book is on the far left?",
+        "answer": "Red book"
+    },
+    {
+        "description": "John visited three cities on his European tour.",
+        "sentence1": "John visited Paris before Rome.",
+        "sentence2": "He went to Madrid after Rome.",
+        "sentence3": "His first trip was to Paris.",
+        "question": "Where did John go after Paris?",
+        "answer": "Rome"
+    },
+    {
+        "description": "Comparing the sweetness of four different fruits.",
+        "sentence1": "The apple is sweeter than the orange.",
+        "sentence2": "The banana is less sweet than the orange.",
+        "sentence3": "The peach is sweeter than the banana.",
+        "question": "Which fruit is the least sweet?",
+        "answer": "Banana"
+    },
+    {
+        "description": "Schedule of events during a workday.",
+        "sentence1": "The meeting starts at 3 PM and ends at 4 PM.",
+        "sentence2": "Before the meeting, there was a lunch at 1 PM.",
+        "sentence3": "After the meeting, there was a coffee break at 4:15 PM.",
+        "question": "What occurs at 1 PM?",
+        "answer": "Lunch"
+    },
+    {
+        "description": "Items placement in a living room.",
+        "sentence1": "Tim's wallet is under the magazines.",
+        "sentence2": "The magazines are on the coffee table.",
+        "sentence3": "The coffee table is next to the couch.",
+        "question": "Where is Tim's wallet in relation to the couch?",
+        "answer": "Next to"
+    },
+    {
+        "description": "Sequence of dishes prepared by a chef for a dinner.",
+        "sentence1": "The chef prepared the starter before the dessert.",
+        "sentence2": "The main course was cooked last.",
+        "sentence3": "The dessert was made after the starter but before the main course.",
+        "question": "What was prepared last?",
+        "answer": "Main course"
+    },
+    {
+        "description": "Liam's evening activities after a day of entertainment.",
+        "sentence1": "Liam read the book before watching the movie.",
+        "sentence2": "He went to bed after watching the movie.",
+        "sentence3": "The book was more interesting than the movie.",
+        "question": "What did Liam do before going to bed?",
+        "answer": "Watched the movie"
+    },
+    {
+        "description": "Three scientists made significant discoveries in different years.",
+        "sentence1": "Dr. Smith discovered element X in 2005.",
+        "sentence2": "Dr. Lee found element Y earlier in 2001.",
+        "sentence3": "Dr. Zhang's discovery of element Z was after Dr. Smith's.",
+        "question": "Who made a discovery first?",
+        "answer": "Dr. Lee"
+    },
+    {
+        "description": "A family of three shops at different stores for their clothing.",
+        "sentence1": "Father buys his clothes at Store A.",
+        "sentence2": "Mother prefers shopping at Store B which is cheaper than Store A.",
+        "sentence3": "Their child finds clothes at Store C, which is more expensive than Store B.",
+        "question": "Where does the mother shop?",
+        "answer": "Store B"
+    },
+    {
+        "description": "On a typical weekday, Sarah performs three main activities in sequence.",
+        "sentence1": "Sarah goes jogging in the morning.",
+        "sentence2": "She works in the office after jogging.",
+        "sentence3": "After work, she takes a yoga class.",
+        "question": "What does Sarah do last?",
+        "answer": "Yoga"
+    },
+    {
+        "description": "Three pets are fed at different times during the day.",
+        "sentence1": "The cat is fed before the dog.",
+        "sentence2": "The parrot is fed after the dog.",
+        "sentence3": "The dog's mealtime is at noon.",
+        "question": "Who is fed first?",
+        "answer": "Cat"
+    },
+    {
+        "description": "An art collector discusses acquiring three unique paintings.",
+        "sentence1": "The first painting is from the Renaissance period.",
+        "sentence2": "A modern art piece was added to the collection after the Renaissance painting.",
+        "sentence3": "The latest acquisition was an impressionist painting.",
+        "question": "What type of painting was acquired last?",
+        "answer": "Impressionist"
+    },
+    {
+        "description": "Observations of the moon's position relative to two planets on a certain night.",
+        "sentence1": "The moon is to the west of Mars.",
+        "sentence2": "Jupiter is located to the east of the moon.",
+        "sentence3": "Mars appears brighter than Jupiter.",
+        "question": "Which planet is closest to the moon?",
+        "answer": "Jupiter"
+    },
+    {
+        "description": "A study on the growth rates of three different plant species in a garden.",
+        "sentence1": "The rose grows faster than the tulip.",
+        "sentence2": "The daisy grows slower than the tulip.",
+        "sentence3": "Tulips have been in the garden since last spring.",
+        "question": "Which plant grows the slowest?",
+        "answer": "Daisy"
+    },
+    {
+        "description": "Tracking the progress of three software development projects.",
+        "sentence1": "Project Alpha completed its initial phase last January.",
+        "sentence2": "Project Beta started before Alpha and finished alongside Alpha.",
+        "sentence3": "Project Gamma commenced after Beta concluded.",
+        "question": "Which project started first?",
+        "answer": "Beta"
+    },
+    {
+        "description": "Comparing the efficiency of three different routes to a common destination.",
+        "sentence1": "Route X takes 30 minutes under normal conditions.",
+        "sentence2": "Route Y is quicker than Route X by 5 minutes.",
+        "sentence3": "Route Z is the longest, taking 5 minutes more than Route X.",
+        "question": "Which route is the quickest?",
+        "answer": "Route Y"
+    },
+    {
+        "description": "A sequence of three business meetings attended by a manager on a single day.",
+        "sentence1": "The manager meets with the sales team first.",
+        "sentence2": "A strategy meeting with executives follows the sales meeting.",
+        "sentence3": "The day ends with a brief session with the marketing department.",
+        "question": "Who does the manager meet last?",
+        "answer": "Marketing"
+    },
+    {
+        "description": "Weather conditions affecting three different regions during a storm.",
+        "sentence1": "Region A experiences heavy rain.",
+        "sentence2": "Region B, adjacent to A, has light rain.",
+        "sentence3": "Region C, next to B, remains dry.",
+        "question": "Which region stays dry during the storm?",
+        "answer": "Region C"
+    },
+    {
+        "description": "Three friends share tasks for organizing a party.",
+        "sentence1": "Alice decorates the venue.",
+        "sentence2": "Bob arranges the music after decoration is complete.",
+        "sentence3": "Charlie prepares food once the music is set up.",
+        "question": "Who is responsible for preparing the food?",
+        "answer": "Charlie"
+    },
+    {
+        "description": "Sequences of a filmmaker creating a documentary.",
+        "sentence1": "Filming starts in the mountains.",
+        "sentence2": "Editing follows the completion of the filming.",
+        "sentence3": "Promotion begins after editing.",
+        "question": "What activity comes last in the production?",
+        "answer": "Promotion"
+    },
+    {
+        "description": "Observing the life cycle of three different insect species in a lab.",
+        "sentence1": "The butterfly emerges from its cocoon first.",
+        "sentence2": "The beetle emerges after the butterfly.",
+        "sentence3": "The dragonfly is the last to emerge.",
+        "question": "Which insect emerges last?",
+        "answer": "Dragonfly"
+    },
+    {
+        "description": "Three employees pitch ideas for a new project.",
+        "sentence1": "Linda proposes an app.",
+        "sentence2": "Mark suggests a website, which was more favored than Linda's app.",
+        "sentence3": "Julie offers a social media campaign, which was less popular than the app.",
+        "question": "Whose idea was the most favored?",
+        "answer": "Mark"
+    },
+    {
+        "description": "Evaluating the performance of three sales regions over a quarter.",
+        "sentence1": "Region X achieved its sales target.",
+        "sentence2": "Region Y exceeded its sales target by 20%.",
+        "sentence3": "Region Z, while not reaching its target, performed better than Region X.",
+        "question": "Which region had the highest sales?",
+        "answer": "Region Y"
+    },
+    {
+        "description": "Three artists contribute to a collaborative art piece.",
+        "sentence1": "Ellen sketches the outline.",
+        "sentence2": "John paints the background after the outline is sketched.",
+        "sentence3": "Tara adds the details last.",
+        "question": "Who adds the final touches?",
+        "answer": "Tara"
+    },
+    {
+        "description": "Stages of constructing a model airplane.",
+        "sentence1": "The wings are assembled first.",
+        "sentence2": "The body is attached to the wings.",
+        "sentence3": "Painting the model is the final step.",
+        "question": "What is the final step in constructing the model?",
+        "answer": "Painting"
+    },
+    {
+        "description": "Three scientists discuss their findings at a conference.",
+        "sentence1": "Dr. Allen presents on genetic mutations.",
+        "sentence2": "Following Dr. Allen, Dr. Baker discusses cellular therapies.",
+        "sentence3": "Dr. Carter concludes with a talk on gene editing technologies.",
+        "question": "Who speaks last at the conference?",
+        "answer": "Dr. Carter"
+    },
+    {
+        "description": "Sequence of a student's morning routine before school.",
+        "sentence1": "The student eats breakfast.",
+        "sentence2": "After breakfast, they pack their school bag.",
+        "sentence3": "Finally, they catch the bus to school.",
+        "question": "What does the student do last before leaving for school?",
+        "answer": "Catch the bus"
+    },
+    {
+        "description": "Progress of three new technology initiatives in a company.",
+        "sentence1": "Initiative Alpha is completed and fully implemented.",
+        "sentence2": "Initiative Beta is still in the testing phase.",
+        "sentence3": "Initiative Gamma has just started and is in the planning stages.",
+        "question": "Which initiative is in the earliest stage?",
+        "answer": "Gamma"
+    },
+    {
+        "description": "Tracking the shipment of goods from a warehouse to three different stores.",
+        "sentence1": "Store X receives its delivery early in the morning.",
+        "sentence2": "Store Y's goods are dispatched after Store X but before Store Z.",
+        "sentence3": "Store Z gets its delivery in the evening.",
+        "question": "Which store receives its goods last?",
+        "answer": "Store Z"
+    },
+    {
+        "description": "Activities of a family on a Sunday.",
+        "sentence1": "In the morning, the family goes for a hike.",
+        "sentence2": "After hiking, they have lunch at a local restaurant.",
+        "sentence3": "They visit the museum in the afternoon.",
+        "question": "What is the last activity the family does?",
+        "answer": "Visit museum"
+    },
+    {
+        "description": "Three stages in the lifecycle of a software product.",
+        "sentence1": "The software is first developed and coded by the tech team.",
+        "sentence2": "It undergoes rigorous testing by the QA team.",
+        "sentence3": "Finally, the product is launched to the public.",
+        "question": "What happens after testing?",
+        "answer": "Launch"
+    },
+    {
+        "description": "Three plants growing in a garden under different conditions.",
+        "sentence1": "The fern is thriving in the shade.",
+        "sentence2": "The sunflower, requiring more light, is planted where it receives full sun.",
+        "sentence3": "Cacti are placed in the semi-shade, needing less water.",
+        "question": "Which plant needs the most light?",
+        "answer": "Sunflower"
+    },
+    {
+        "description": "Three friends discussing their favorite seasons.",
+        "sentence1": "Alice prefers spring for its mild weather.",
+        "sentence2": "Bob enjoys summer more because of the beach trips.",
+        "sentence3": "Cara loves autumn for the foliage.",
+        "question": "Who enjoys the summer?",
+        "answer": "Bob"
+    },
+    {
+        "description": "Sequential tasks in setting up a new office.",
+        "sentence1": "First, the furniture is installed in the designated areas.",
+        "sentence2": "Next, computers and other tech equipment are set up.",
+        "sentence3": "Finally, decorations and plants are added to enhance the ambiance.",
+        "question": "What is done last when setting up the office?",
+        "answer": "Decorations"
+    },
+    {
+        "description": "A sequence of events at a school science fair.",
+        "sentence1": "Students set up their projects in the morning.",
+        "sentence2": "Judges review the projects throughout the afternoon.",
+        "sentence3": "Awards are given out at the end of the day.",
+        "question": "When are awards given out?",
+        "answer": "End of the day"
+    },
+    {
+        "description": "Three different courses served during a dinner.",
+        "sentence1": "The appetizer is a soup.",
+        "sentence2": "The main course includes a steak and vegetables.",
+        "sentence3": "Dessert is a chocolate cake served after the main course.",
+        "question": "What is served for dessert?",
+        "answer": "Chocolate cake"
+    },
+    {
+        "description": "Sequence of an athlete's participation in events during a triathlon.",
+        "sentence1": "The triathlon starts with swimming.",
+        "sentence2": "Cycling follows swimming.",
+        "sentence3": "The last event is running.",
+        "question": "What is the last event in the triathlon?",
+        "answer": "Running"
+    },
+    {
+        "description": "Monitoring three different investments over the course of a year.",
+        "sentence1": "Investment A yielded a return of 5% in the first quarter.",
+        "sentence2": "Investment B consistently outperformed Investment A throughout the year.",
+        "sentence3": "Investment C had the highest annual return overall.",
+        "question": "Which investment had the highest annual return?",
+        "answer": "Investment C"
+    },
+    {
+        "description": "Observing the growth of three different tree species in a botanical garden.",
+        "sentence1": "The oak tree grows faster than the pine tree.",
+        "sentence2": "The maple tree grows slower than the oak but faster than the pine.",
+        "sentence3": "All trees were planted at the same time.",
+        "question": "Which tree grows the slowest?",
+        "answer": "Pine"
+    },
+    {
+        "description": "Three students compete in a math contest with sequential rounds.",
+        "sentence1": "Alice solves the first problem before Bob.",
+        "sentence2": "Charlie finishes the final problem last.",
+        "sentence3": "Bob completes more problems than Charlie but fewer than Alice.",
+        "question": "Who completes the most problems?",
+        "answer": "Alice"
+    },
+    {
+        "description": "Tracking the order of speakers at a conference.",
+        "sentence1": "Dr. Martinez speaks after Dr. Liu.",
+        "sentence2": "Dr. Johnson is the first speaker.",
+        "sentence3": "Dr. Liu speaks right after Dr. Johnson.",
+        "question": "Who speaks second at the conference?",
+        "answer": "Dr. Liu"
+    },
+    {
+        "description": "Three courses of a meal served at a restaurant.",
+        "sentence1": "The salad course is served first.",
+        "sentence2": "The steak is served after the salad but before dessert.",
+        "sentence3": "Dessert is ice cream.",
+        "question": "What is served immediately before the ice cream?",
+        "answer": "Steak"
+    },
+    {
+        "description": "Three friends discussing their next vacation destinations.",
+        "sentence1": "Frank plans to visit Spain after Natalie returns from Italy.",
+        "sentence2": "Natalie leaves for Italy before Liam goes to France.",
+        "sentence3": "Liam plans his trip after Frank.",
+        "question": "Who travels first?",
+        "answer": "Natalie"
+    },
+    {
+        "description": "Three phases of a construction project.",
+        "sentence1": "The foundation is laid first.",
+        "sentence2": "Building the walls is the next step after the foundation.",
+        "sentence3": "The roof is added after the walls are completed.",
+        "question": "What is constructed after the foundation?",
+        "answer": "Walls"
+    },
+    {
+        "description": "Three siblings inherit different items from a will.",
+        "sentence1": "John inherits the house, which is worth more than the car.",
+        "sentence2": "Sue inherits the car, which is worth more than the jewelry.",
+        "sentence3": "Tim inherits the jewelry.",
+        "question": "Who inherits the least valuable item?",
+        "answer": "Tim"
+    },
+    {
+        "description": "Sequence of events in a typical morning routine.",
+        "sentence1": "Jeff wakes up and then brushes his teeth.",
+        "sentence2": "He makes coffee after brushing his teeth.",
+        "sentence3": "After making coffee, he reads the newspaper.",
+        "question": "What does Jeff do last in his morning routine?",
+        "answer": "Reads the newspaper"
+    },
+    {
+        "description": "Three employees are considered for a promotion based on their project results.",
+        "sentence1": "Emily's project exceeded company expectations.",
+        "sentence2": "Mark's project met the basic requirements.",
+        "sentence3": "Lucas's project did not meet expectations.",
+        "question": "Who is least likely to be promoted?",
+        "answer": "Lucas"
+    },
+    {
+        "description": "Evaluating the efficiency of three different cleaning products.",
+        "sentence1": "Product A cleans surfaces in half the time it takes Product B.",
+        "sentence2": "Product C is slower than Product B but less harmful to surfaces.",
+        "sentence3": "Product B is known for its quick action.",
+        "question": "Which cleaning product is the fastest?",
+        "answer": "Product A"
+    },
+    {
+        "description": "Three cars in a race each take a different amount of time to complete the track.",
+        "sentence1": "Car A finishes the race in 50 minutes.",
+        "sentence2": "Car B takes 5 minutes longer than Car A to finish.",
+        "sentence3": "Car C finishes 10 minutes faster than Car B.",
+        "question": "Which car finishes the race first?",
+        "answer": "Car C"
+    },
+    {
+        "description": "Three siblings planting trees in different locations of their yard.",
+        "sentence1": "Anna plants a maple tree in the front yard.",
+        "sentence2": "Ben plants a pine tree in the backyard, which is larger than the front yard.",
+        "sentence3": "Cara plants an oak tree next to the pine tree in the backyard.",
+        "question": "Where is the oak tree planted?",
+        "answer": "Backyard"
+    },
+    {
+        "description": "Three companies launching new technology products in a competitive market.",
+        "sentence1": "Company X launches its product in January and receives moderate feedback.",
+        "sentence2": "Company Y launches in March, after improving their product based on X's feedback.",
+        "sentence3": "Company Z delays its launch to June to include additional features not present in Y's product.",
+        "question": "Which company launches its product last?",
+        "answer": "Company Z"
+    },
+    {
+        "description": "Analysis of three different diet plans' effects on health over six months.",
+        "sentence1": "Diet Plan A leads to significant weight loss but increases fatigue.",
+        "sentence2": "Diet Plan B results in moderate weight loss without side effects.",
+        "sentence3": "Diet Plan C shows minimal change in weight but improves overall energy levels.",
+        "question": "Which diet plan improves energy?",
+        "answer": "Diet Plan C"
+    },
+    {
+        "description": "Three students submitting their final thesis at different times.",
+        "sentence1": "Alice submits her thesis right at the deadline.",
+        "sentence2": "Bob submits his thesis one week before the deadline.",
+        "sentence3": "Cara submits hers two days after Alice.",
+        "question": "Who submits their thesis last?",
+        "answer": "Cara"
+    },
+    {
+        "description": "Observing the growth of three houseplants over the course of a year.",
+        "sentence1": "The fern grows by 5 inches, which is more than the cactus.",
+        "sentence2": "The spider plant grows by 7 inches, the most of all.",
+        "sentence3": "The cactus grows the least, by 3 inches.",
+        "question": "Which plant grows the most?",
+        "answer": "Spider plant"
+    },
+    {
+        "description": "Three friends decide to start businesses in different sectors.",
+        "sentence1": "Lucy starts a cafe in the city center.",
+        "sentence2": "Mia opens a bookstore next to Lucy's cafe.",
+        "sentence3": "Noah launches an online clothing store.",
+        "question": "Who starts a business unrelated to food?",
+        "answer": "Noah"
+    },
+    {
+        "description": "Three birds spotted at different times during a birdwatching session.",
+        "sentence1": "The robin is seen at dawn.",
+        "sentence2": "The sparrow is seen shortly after the robin.",
+        "sentence3": "The owl is observed at dusk, last of all.",
+        "question": "Which bird is seen last?",
+        "answer": "Owl"
+    },
+    {
+        "description": "Sequence of events during a day's festival.",
+        "sentence1": "The parade starts the festival at 10 AM.",
+        "sentence2": "After the parade, a concert takes place at noon.",
+        "sentence3": "The day ends with a fireworks display at 9 PM.",
+        "question": "What event concludes the festival?",
+        "answer": "Fireworks"
+    }
+]
