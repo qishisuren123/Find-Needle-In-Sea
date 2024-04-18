@@ -1,0 +1,7 @@
+{
+  "obelisc_10m": {
+    "root": "lqy:s3://public-dataset/OBELISC/raw-images/",
+    "annotation": "/mnt/petrelfs/share_data/liqingyun/lmm_baseline_llava/preprocess_interleaved_data/obelics/selected_sample_10M_obelisc",
+    "data_augment": false
+  }
+}
