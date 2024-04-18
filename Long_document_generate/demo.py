@@ -62,8 +62,6 @@ def process_item(item, image_placeholder):
     for i in range(num_image_placeholders):
         text = text.replace(image_placeholder, image_to_mdstring(all_images[i]), 1)
 
-    vqa_question = item["question"]
-    vqa_answer = item["answer"]
 
     md_str = [
         '## Meta Info',
@@ -71,8 +69,6 @@ def process_item(item, image_placeholder):
         f"{item['labels'].shape=}",
         f"num_image_tokens={num_image_placeholders * NUM_IMG_TOKEN}",
         f"num_text_tokens={item['input_ids'].shape[0] - num_image_placeholders * NUM_IMG_TOKEN}",
-        f"question={vqa_question}",
-        f"answer={vqa_answer}",
         '## Input', text,
         '## Target', label,
     ]
