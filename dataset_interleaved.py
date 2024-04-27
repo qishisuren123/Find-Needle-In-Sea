@@ -33,7 +33,7 @@ needle_img_path ='/mnt/petrelfs/renyiming/dataset/sea-needle/data/needle-find-v2
 
 def token_num(text):
     enc = tiktoken.encoding_for_model("gpt-4")   
-    tokens = enc.encode("you are a person.")
+    tokens = enc.encode(text)
     return len(tokens)
 
 def add_dict_to_json(new_data, json_file_path='/mnt/petrelfs/renyiming/dataset/sea-needle/data/ori_data.json'):
