@@ -3,16 +3,13 @@ import os
 import re
 import json
 import jsonlines
-import hashlib
 import random
 
 from math import ceil
 from PIL import Image
 from copy import deepcopy
-from typing import List, Tuple, Union, Optional
+from typing import List, Tuple, Optional
 from pathlib import Path
-from urllib import request
-from multiprocessing import Process
 
 import torch
 import torchvision.transforms as T
@@ -20,7 +17,6 @@ import tiktoken
 
 from num2words import num2words
 from torch.utils.data import Dataset
-from petrel_client.client import Client
 
 from utils_dyc import (HTTP_PROXY)
 
@@ -39,7 +35,7 @@ class NeedleHaystackVarTrackingDataset(Dataset):
         needles_num_per_file: int = 3,
         token_max: int = 5000,
         depth_percent_max: int = 90,
-        max_image_num: int = None,  # not implemented
+        max_image_num: int = None,  # not implemented yet
         max_image_size: int = None,
         keep_ratio: bool = True,
         image_patch_size: int = 16,
@@ -146,7 +142,7 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                         ...
                     ]
                 }
-            
+
         """
         main_type_needles_len = self.needle_meta_files_num[self.main_needle_type]
         assigned_needles = []  # List[dict]
@@ -236,10 +232,10 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                 else:
                     raise AssertionError
         return longdoc, {'image_list': track_images,
-                          'texts_token': track_text_tokens,
-                          'images_token': track_image_tokens}
+                         'texts_token': track_text_tokens,
+                         'images_token': track_image_tokens}
 
-    def _format_needle(self, needle_type:str, needle_ori:dict, needle_name:str) -> dict:
+    def _format_needle(self, needle_type: str, needle_ori: dict, needle_name: str) -> dict:
         """Format needle to standard.
         Args:
             needle_type (str):
@@ -249,8 +245,10 @@ class NeedleHaystackVarTrackingDataset(Dataset):
         {
             'needle_type': str,
             'name': str,  # idx for current needle
-            'answer': str,
+            'answer': int | str,  # int for choose, str for open
             'question': str,
+            'choices': List[str] | None,
+            'choices_image_path': List[str] | None,
             # str for texts, dict for images {'type': str, 'path': str, 'token_num': int, 'meta': dict}
             'needles': List[str | dict],
             'meta': dict | None,
@@ -279,11 +277,47 @@ class NeedleHaystackVarTrackingDataset(Dataset):
 
         # transfer to standard needle form
         needle = dict(needle_type=needle_type,
-                      name=needle_name)
+                      name=needle_name,
+                      choices=None,
+                      choices_image_path=None)
         if needle_type == 'visual-reasoning':
-            needle['answer'] = needle_ori['answer']
-            needle['question'] = needle_ori['prompt']  # use prompt is better
-            needle['meta'] = needle_ori['meta']
+            needle['meta'] = deepcopy(needle_ori['meta'])  # {'subset': str}
+            # handle question / answer / choices_image_path for each subset
+            if needle['meta']['subset'] == 'Jigsaw':
+                question_end_index = needle_ori['prompt'].find('\nSelect')
+                # use prompt is better
+                needle['question'] = needle_ori['prompt'][:question_end_index]
+                """Jigsaw prompt
+                Given the first image with the lower right corner missing, 
+                can you tell which one of the second image or the third image is the missing part? 
+                Imagine which image would be more appropriate to place in the missing spot. 
+                You can also carefully observe and compare the edges of the images.
+                # Select from the following choices.\n\n(A) the second image\n(B) the third image\n
+                """
+                needle['answer'] = 0 if 'A' in needle_ori['answer'] else 1
+                if self.image_file_name_only:
+                    needle['choices_image_path'] = [os.path.basename(needle_ori['images'][1]),
+                                                    os.path.basename(needle_ori['images'][2])]
+                else:
+                    needle['choices_image_path'] = [needle_ori['images'][1],
+                                                    needle_ori['images'][2]]
+
+            elif needle['meta']['subset'] == 'Multi-view_Reasoning':
+                question_end_index = needle_ori['prompt'].find(' Select')
+                needle['question'] = needle_ori['prompt'][:question_end_index]
+                """Multi-view_Reasoning prompt
+                The images are frames from a video. 
+                The video is shooting a static scene. 
+                The camera is either moving clockwise (left) or counter-clockwise (right) around the object. 
+                The first image is from the beginning of the video and the second image is from the end. 
+                Is the camera moving left or right when shooting the video?
+                # Select from the following options.\n(A) left\n(B) right
+                """
+                needle['answer'] = 0 if 'A' in needle_ori['answer'] else 1
+            else:
+                raise NotImplementedError
+
+            needle['choices'] = deepcopy(needle_ori['choices'])
             needle['needles'] = []
             """
                 image_dict {
@@ -293,7 +327,6 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                     'meta': {'height': int, 'width': int, 'needle_name': str}
                 }
             """
-
             for img_path in needle_ori['images']:
                 img_dict = dict(path=img_path,
                                 type='needle')
@@ -319,19 +352,31 @@ class NeedleHaystackVarTrackingDataset(Dataset):
 
     def _insert_needle(self, needle: dict, longdoc: str, longdoc_metas: dict, depth_percent: int) -> Tuple[str | dict]:
         """
-        standard needle:
+        standard needle format:
         {
             'needle_type': str,
             'name': str,  # idx for current needle
-            'answer': str,
+            'answer': int | str,  # int for choose, str for open
             'question': str,
-            # str for texts, dict for images {'path': str, 'token_num': int, 'meta': dict}
+            'choices': List[str] | None,
+            'choices_image_path': List[str] | None,
+            # str for texts, dict for images {'type': str, 'path': str, 'token_num': int, 'meta': dict}
             'needles': List[str | dict],
             'meta': dict | None,
         }
         """
         # only consider text tokens for depth calculation
-        def find_nearest_period(insertion_point: int, tokens_context: list):
+        def find_nearest_period(insertion_point: int, tokens_context: list) -> int:
+            """Find (previous)nearest period in tokens_context and avoid special case.
+            Special cases:
+            ['Dr.', 'Mr.', 'Mrs.', 'Ms.', 'No.']
+            Args:
+                insertion_point (int): Index for tokens_context list of the insert point.
+                tokens_context (list): List of tokens.
+
+            Returns:
+                insertion_point (int): Index of period. If no period before insertion_point, return 0.
+            """
             # tokens_context = self.tokenizer.encode(context)
             period_tokens = self.tokenizer_counter.encode('.')
             try:
@@ -345,7 +390,8 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                 # special cases
                 pre_text = self.tokenizer_counter.decode(
                     tokens_context[:insertion_point])
-                if pre_text.endswith('Dr') or pre_text.endswith('Mr') or pre_text.endswith('Mrs') or pre_text.endswith('Ms'):
+                if pre_text.endswith('Dr') or pre_text.endswith('Mr') or \
+                        pre_text.endswith('Mrs') or pre_text.endswith('Ms') or pre_text.endswith('No'):
                     return find_nearest_period(insertion_point - 1, tokens_context)
             return insertion_point
 
@@ -466,42 +512,71 @@ class NeedleHaystackVarTrackingDataset(Dataset):
             raise NotImplementedError
         return longdoc, longdoc_metas
 
-    def _format_result(self, longdoc: str, longdoc_metas: dict, needles: dict) -> dict:
-        def generate_prompt(context: str, retrieval_question: str) -> str:
-            prompt = ('You are an intelligent AI assistant skilled in '
-                      'answering user questions.\n'
-                      'Please keep your answers concise and clear. Do '
-                      'not talk about irrelevant topics or repeat '
-                      'your answers.\nThe document '
-                      f'given to you by the user is {context}\n\n'
-                      f'Now, the question is: {retrieval_question}')
-            return prompt
+    def _generate_prompt(self, context: str, retrieval_question: str) -> str:
+        prompt = ('You are an intelligent AI assistant skilled in '
+                  'answering user questions.\n'
+                  'Please keep your answers concise and clear. Do '
+                  'not talk about irrelevant topics or repeat '
+                  'your answers.\nThe document '
+                  f'given to you by the user is:\n\n {context}\n\n'
+                  f'Now, the question is: {retrieval_question}')
+        return prompt
 
-        def modify_question(question: str, needle_type:str, needle_meta: dict, info) -> str:
+    def _format_result(self, longdoc: str, longdoc_metas: dict, needles: dict, visualization: bool = False) -> dict:
+        """Convert result to convensional format.
+
+        Args:
+            longdoc (str): Long document(inserted with needles, <image> as image).
+            longdoc_metas (dict): {
+                                       'image_list'  : List[dict],  # image_dict {'type': str, 'path': str, 'token_num': int, 'meta': dict}
+                                       'texts_token' : int,  # texts token num for longdoc(replace '<image>' with '')
+                                       'images_token': int  # sum image token num in image_list
+                                  }
+            needles (dict): {'needle_name_0': needle_0, 'needle_name_1': needle_1, ...}, main needle is the last one.
+            visualization (bool): Return more infos for visualization. Defaults to False.
+
+        Returns:
+            result (dict): Result by conventional format as follows:
+            {
+                'image_list': List[str],  # only file name
+                'context': str,  # <image> alt for images
+                'question': str,  # no options/choices
+                'answer: str | int,  # str for open questions, int for choice index
+                'meta': {
+                    'placed_depth': List[float] | float,  # [0,1]
+                    'context_length': int,  # image tokens + text tokens
+                    'context_length_text': int,
+                    'num_images': int,
+                    'needles': List[str],
+                    'choices': List[str] | None,  # None for not choice question
+                    'choices_image_path': List[str] | None,  # None for not image answer
+                    'category': str
+                }
+            }
+            # 'id' is updated ouside.
+        """
+        def modify_question_and_choices(question: str, choices: list, needle_type: str, needle_meta: dict, info) -> str:
             if needle_type == 'infer-choose':
-                return question
+                return question, choices
             elif needle_type == 'visual-reasoning':
-                if needle_meta['subset'] == 'Multi-view_Reasoning':
-                    text_list = question.split('.')
-                    first_idx = num2words(info[0], to="ordinal")
-                    second_idx = num2words(info[1], to="ordinal")
-                    text_list[0] = (f'The {first_idx}'
-                                    f' and {second_idx} images are frames from a video')
-                    text_list[3] = text_list[3].replace('first', first_idx)
-                    text_list[3] = text_list[3].replace('second', second_idx)
-                    question = '.'.join(text_list)
-                elif needle_meta['subset'] == 'Jigsaw':
-                    text_list = question.split('?')
-                    first_idx = num2words(info[0], to="ordinal")
-                    second_idx = num2words(info[1], to="ordinal")
-                    third_idx = num2words(info[2], to="ordinal")
-                    text_list[0] = text_list[0].replace('first', first_idx)
-                    text_list[0] = text_list[0].replace('second', second_idx)
-                    text_list[0] = text_list[0].replace('third', third_idx)
-                    text_list[1] = text_list[1].replace('second', second_idx)
-                    text_list[1] = text_list[1].replace('third', third_idx)
-                    question = '?'.join(text_list)
-                return question
+                # info (list): Indexs of needle images in the longdoc, start from 0.
+                if needle_meta['subset'] == 'Jigsaw':
+                    first_idx = num2words(info[0] + 1, to="ordinal")  # >= 1
+                    second_idx = num2words(info[1] + 1, to="ordinal")  # >= 2
+                    third_idx = num2words(info[2] + 1, to="ordinal")  # >= 3
+                    question = question.replace('third', third_idx)
+                    question = question.replace('second', second_idx)
+                    question = question.replace('first', first_idx)
+                    choices[0] = choices[0].replace('second', second_idx)
+                    choices[1] = choices[1].replace('third', third_idx)
+                elif needle_meta['subset'] == 'Multi-view_Reasoning':
+                    first_idx = num2words(info[0] + 1, to="ordinal")
+                    second_idx = num2words(info[1] + 1, to="ordinal")
+                    question = question.replace('second', second_idx)
+                    question = question.replace('first', first_idx)
+                else:
+                    raise NotImplementedError
+                return question, choices
             else:
                 raise NotImplementedError
             return
@@ -509,10 +584,10 @@ class NeedleHaystackVarTrackingDataset(Dataset):
         needle_depth = dict()
         needles_list = list(needles.items())
         for (needle_name, needle_dict) in needles_list:
+            needle_depth[needle_name] = []
             if needle_dict['needle_type'] == 'infer-choose':
                 # find texts
                 longdoc_pure_text = longdoc.replace(self.image_alt_sym, '')
-                needle_depth[needle_name] = []
                 for some_needle in needle_dict['needle_format']['needles']:
                     needle_pos = re.search(
                         some_needle, longdoc_pure_text)
@@ -523,12 +598,12 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                         with open('temp.json', 'w') as f:
                             json.dump(save_dict, f)
                     needle_pos = needle_pos.span()[0]
+
                     depth = 1 - len(self.tokenizer_counter.encode(longdoc_pure_text[:needle_pos])) \
                         / len(self.tokenizer_counter.encode(longdoc_pure_text))
                     needle_depth[needle_name].append(depth)
             elif needle_dict['needle_type'] == 'visual-reasoning':
                 image_list = longdoc_metas['image_list']
-                needle_depth[needle_name] = []
                 for image_idx, image in enumerate(image_list):
                     if image['meta'].get('needle_name', None) == needle_name:
                         longdoc_text_split = longdoc.split(self.image_alt_sym)
@@ -539,12 +614,16 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                         depth = 1 - len(self.tokenizer_counter.encode(longdoc_pre)) \
                             / len(self.tokenizer_counter.encode(longdoc_pure_text))
                         needle_depth[needle_name].append(depth)
-        
-        # 2. Format Prompt by Main Needle
+            else:
+                raise NotImplementedError
+
+        # 2. Modify Question and Choices by Main Needle
         main_needle_name, main_needle_dict = needles_list[-1]
+        question = None
+        choices = None
         if self.main_needle_type == 'infer-choose':
-            prompt = generate_prompt(
-                longdoc, main_needle_dict['needle_format']['question'])
+            question = main_needle_dict['needle_format']['question']
+            # choices/choices_image_path = None
         elif self.main_needle_type == 'visual-reasoning':
             # find all image idxs
             needle_image_idx_list = []
@@ -552,16 +631,20 @@ class NeedleHaystackVarTrackingDataset(Dataset):
             for image_idx, image in enumerate(image_list):
                 if image['meta'].get('needle_name', None) == main_needle_name:
                     needle_image_idx_list.append(image_idx)
-            question = modify_question(main_needle_dict['needle_format']['question'],
-                                       'visual-reasoning',
-                                       main_needle_dict['needle_format']['meta'],
-                                       needle_image_idx_list)
-            prompt = generate_prompt(longdoc, question)
-        
+            assert len(needle_image_idx_list) == len(main_needle_dict['needle_format']['needles'])
+            question, choices = modify_question_and_choices(
+                main_needle_dict['needle_format']['question'],
+                main_needle_dict['needle_format']['choices'],
+                'visual-reasoning',
+                main_needle_dict['needle_format']['meta'],
+                needle_image_idx_list)
+        else:
+            raise NotImplementedError
+
         # 3. Format Final Result
         result = dict()
         token_num_texts = len(self.tokenizer_counter.encode(
-            prompt.replace(self.image_alt_sym, '')))
+            longdoc.replace(self.image_alt_sym, '')))
         token_num_images = longdoc_metas['images_token']
         token_num_total = (token_num_texts + token_num_images)
         image_path_list = []
@@ -571,28 +654,115 @@ class NeedleHaystackVarTrackingDataset(Dataset):
         else:
             for image_dict in longdoc_metas['image_list']:
                 image_path_list.append(image_dict['path'])
-        result['images_list'] = image_path_list
-        result['conversations'] = [{"from": "human", "value": prompt}]
         # check image num
-        assert len(prompt.split(self.image_alt_sym)) == (
-            len(image_path_list) + 1)
+        assert longdoc.count(self.image_alt_sym) == len(image_path_list)
+        result['images_list'] = image_path_list
+        result['context'] = longdoc
+        result['question'] = question
         result['answer'] = main_needle_dict['needle_format']['answer']
         result['meta'] = {
-            "placed_depth": needle_depth[main_needle_name],  # depth for needles in main needle
-            "context_length": token_num_total,
-            "context_length_text": token_num_texts,
-            "context_length_image": token_num_images,
+            # depth for needles in main needle
+            'placed_depth': needle_depth[main_needle_name],
+            'context_length': token_num_total,
+            'context_length_text': token_num_texts,
+            'num_images': len(image_path_list),
+            'needles': main_needle_dict['needle_format']['needles'],
+            'choices': choices,
+            'choices_image_path': main_needle_dict['needle_format']['choices_image_path'],
+            'category': self.main_needle_type
         }
+        if visualization:
+            result['needles_meta'] = needles
         return result
+
+    def _format_visualization_result(self, conversation: dict) -> str:
+        """Convert conversation dict to markdown str format.
+
+        Args:
+            conversation (dict): result from __getitem__(index, visualization=True)
+
+        Returns:
+            md_str (str): Markdown string. Format as follows:
+                # Meta Info
+                conversation['meta']
+                # Needles:
+                Needle_0
+                Needle_1
+                ...
+                ---
+                # Prompt:
+                prefix + text + images + question
+                # Answer:
+                answer
+        """
+        # 1. Get Infos from Conversation
+        needles = conversation['needles_meta']
+        longdoc = conversation['context']  # str
+        question = conversation['question']
+        answer = conversation['answer']
+        choices = conversation['meta']['choices']
+        answer = choices[answer] if choices else answer
+        image_path_list = conversation['images_list']
+        # convert image path to rel path
+        for i, image_path in enumerate(image_path_list):
+            idx = longdoc.find(self.image_alt_sym)
+            image_path = image_path.replace('/mnt/petrelfs/share_data/duanyuchen/datasets/BLINK_custom/',
+                                            '../images/')
+            longdoc = longdoc[:idx] \
+                + f"\n\n![image]({image_path})\n\n" \
+                + longdoc[idx+len(self.image_alt_sym):]
+        
+        # 2. Mark Needle Texts in Different Color, Gather All Needles
+        haystack_needle_color = 'Blue'
+        main_needle_color = 'Red'
+        needles = list(needles.items())
+        main_needle_name, _ = needles[-1]
+        needle_strs = ''
+        for i, (needle_name, needle) in enumerate(needles):
+            # mark each needle
+            needle_type = needle['needle_type']
+            needle_strs += f'## Needle {i}: \n\n'
+            if needle_type == 'infer-choose':
+                for j, needle_sentence in enumerate(needle['needle_format']['needles']):
+                    if needle_name == main_needle_name:
+                        longdoc = longdoc.replace(
+                            needle_sentence, f'\n<font color={main_needle_color}>{needle_sentence}</font>\n')
+                    else:
+                        longdoc = longdoc.replace(
+                            needle_sentence, f'\n<font color={haystack_needle_color}>{needle_sentence}</font>\n')
+                    needle_strs += f'{j + 1}. {needle_sentence}\n\n'
+                needle_strs += f'Question: {needle["needle_format"]["question"]}\n\n'
+                needle_strs += f'Answer: {needle["needle_format"]["answer"]}\n\n'
+            elif needle_type == 'visual-reasoning':
+                for j, image in enumerate(needle['needle_format']['needles']):
+                    image_path = image['path'].replace('/mnt/petrelfs/share_data/duanyuchen/datasets/BLINK_custom/',
+                                                       '../images/')
+                    needle_strs += f"![image]({image_path})\n\n"
+                needle_strs += f'Question: {needle["needle_ori"]["prompt"]}\n\n'
+                needle_answer = needle["needle_ori"]["answer"]
+                needle_strs += f'Answer: {needle_answer}\n\n'
+            else:
+                raise NotImplementedError
+        
+        # 3. Format the Markdown Str
+        prompt = self._generate_prompt(longdoc, question)
+        md_str = f'# Meta Info\n\n```python\n\n{conversation["meta"]}\n\n```\n\n' \
+            f'\n\n# Needles:\n\n{needle_strs}\n\n' \
+            '\n\n---\n\n' \
+            f'\n\n# Prompt:\n\n{prompt}\n\n'\
+            f'\n\n# Answer:\n\n{answer}\n\n'
+        return md_str
 
     def __len__(self):
         return self.dataset_len
 
-    def __visitem__(self, index):
-        # TODO:
-        raise NotImplementedError
+    def __visitem__(self, index) -> str:
+        """Get visualization str for data[index]
+        """
+        conversation = self.__getitem__(index, True)
+        return self._format_visualization_result(conversation)
 
-    def __getitem__(self, index) -> dict:
+    def __getitem__(self, index, visualization=False) -> dict:
         # 1. Get LongDoc
         longdoc_file = self._get_longdoc_file(index)
         longdoc, longdoc_metas = self._join_longdoc(longdoc_file)
@@ -658,491 +828,80 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                                                          longdoc_metas,
                                                          needle_dict['depth_percent'])
         # 4. Format results
-        result = self._format_result(longdoc, longdoc_metas, current_needles)
+        result = self._format_result(
+            longdoc, longdoc_metas, current_needles, visualization)
         result['id'] = index
         return result
 
 
-class LongDocumentGenerateWrapper:
-    """
-    Long document json file format: (one json file for each document)
-    {
-        'texts'                : List[str | None],  # text -> str, image -> None
-        'images'               : List[str | None],  # text -> None, image -> str(url | sha256)
-        'valid_image'          : List[int],  # valid image -> 1, texts/invalid image -> 0
-        'metadata'             : List[dict | None],  # text -> None, image -> dict
-        'token_num_total'      : int,
-        'text_token_num_total' : int,
-        'image_token_num_total': int,
-        'token_num'            : List[int],
-        'token_num_text'       : List[int],
-        'token_num_image'      : List[int],
-        'token_max_type'       : str,  # 'all' or 'text'
-    }
-
-    Save format:
-    save_path / 'token_max[0]' / '0.json'
-                               / '1.json'
-                               / ...
-              / 'token_max[1]' / '0.json'
-              ...
-    """
-
-    def __init__(self,
-                 text_src_path: str = 's3://public-dataset/OBELISC/jsonl/',
-                 image_src_path: Optional[str] = None,
-                 tokenizer: str = 'gpt-4',
-                 token_max: Union[int, List[int]] = 15000,
-                 token_max_type: str = 'text',  # [text, all]
-                 file_num: Union[int, List[int]] = 10,
-                 max_image_num: Optional[int] = None,
-                 max_image_size: Optional[int] = None,
-                 keep_ratio: bool = True,
-                 image_patch_size: int = 16,
-                 petrel_config_path: str = '~/petreloss.conf',
-                 petrel_cluster: str = 'obelisc',
-                 hash_url: bool = True,
-                 save_path: Optional[str] = './output/longdocs/'
-                 ):
-        """Wrapper for generate long documents.
-
-        Args:
-            text_src_path (str): Path to Obelisc dataset. Defaults to 's3://public-dataset/OBELISC/jsonl/'.
-            image_src_path (Optional[str], optional): Set to None if read from urls in text files, else use local path. Defaults to None.
-            tokenizer (str): tiktoken tokenizer. Defaults to 'gpt-4'.
-            token_max (Union[int, List[int]]): Max tokens. Defaults to 15000.
-            file_num (Union[int, List[int]]): File num for each token_max. Defaults to 10.
-            max_image_num (int, optional): Max image num in each long document. Defaults to 6.
-            max_image_size (int, optional): Max image size(long side) in long document. Defaults to 448.
-            keep_ratio (bool): Keep origin ratio when resize images. Defaults to True.
-            image_patch_size (int): Defaults to 16.
-            petrel_config_path (str):  Defaults to '~/petreloss.conf'.
-            petrel_cluster (str): Use your personal petreloss cluster. Defaults to 'obelisc'.
-            hash_url (bool): Whether replace urls of images to sha256. Default to True.
-            save_path (Optional[str], optional): save path for long documents. Defaults to './output/longdocs/'.
-        """
-        print(f'## Init LongDocumentGenerateWrapper', flush=True)
-        # 1. Manage Generation Params
-        self.text_src_path = text_src_path
-        self.image_src_path = None
-        if image_src_path:
-            # image paths in text files are under this path
-            self.image_src_path = Path(image_src_path)
-        # Manage Tokenizer
-        self.tokenizer = tiktoken.encoding_for_model(tokenizer)
-        self.token_max = token_max if isinstance(
-            token_max, list) else [token_max]
-        self.token_max_type = token_max_type
-        self.file_num = file_num if isinstance(file_num, list) else [
-            file_num] * len(self.token_max)
-        assert len(self.token_max) == len(self.file_num)
-        # Manage Image Configs
-        self.max_image_num = max_image_num
-        self.max_image_size = max_image_size
-        self.keep_ratio = keep_ratio
-        self.image_patch_size = image_patch_size
-        # Manage Save Path for Long Docs
-        self.save_path = Path(save_path)
-        self.save_path.mkdir(parents=True, exist_ok=True)
-        self.hash_url = hash_url  # whether hash image urls
-        print(f'## Tokenizer:        {tokenizer}', flush=True)
-        print(f'## Token Num max:    {self.token_max}', flush=True)
-        print(f'## Image Num max:    {self.max_image_num}', flush=True)
-        print(f'## Image Size max:   {self.max_image_size}', flush=True)
-        print(f'## Image Patch Size: {self.image_patch_size}', flush=True)
-        print(f'## LongDocs saved at {str(self.save_path)}', flush=True)
-
-        # 2. Manage File Loaders
-        # Get file generator and check
-        # text files: petrel backend
-        self.petrel_client = Client(petrel_config_path)
-        self.petrel_cluster = petrel_cluster
-        self.petrel_cluster_header = self.petrel_cluster + ':s3://'
-        # generator for text file path(the part after s3://)
-        self.text_file_path_generator = self.petrel_client.get_file_iterator(
-            f'{self.petrel_cluster}:{self.text_src_path}').__iter__()
-        print(
-            f'## LongDocs materials load from {self.petrel_cluster}:{self.text_src_path}')
-        # track text file (first file is a test file)
-        try:
-            next(self.text_file_path_generator)
-        except Exception as e:
-            print('Invalid Text Path or Petrel Client', flush=True)
-            raise e
-        self.current_text_file_path = None  # str
-        self.current_text_file = None  # io.BytesIO, current file
-        self.current_text_file_sample = None  # dict, current sample
-        # image files: local/http
-        if self.image_src_path is None:  # http
-            # install opener with personal proxy
-            opener = request.build_opener(HTTP_PROXY)
-            opener.addheaders = [
-                ('User-agent',
-                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                 'AppleWebKit/537.36 (KHTML, like Gecko) '
-                 'Chrome/73.0.3683.86 Safari/537.36')]
-            request.install_opener(opener)
-
-    def _get_next_text_file(self) -> None:
-        """
-        Update [self.current_text_file_path, self.current_text_file] to next file.
-        """
-        try:
-            self.current_text_file_path = f'{self.petrel_cluster}:s3://' + next(
-                self.text_file_path_generator)[0]
-            self.current_text_file = io.BytesIO(self.petrel_client.get(
-                self.current_text_file_path))
-        except StopIteration:
-            print(f'Error: Not enough text files in {self.text_src_path} !!!')
-            raise StopIteration
-
-    def _get_next_text_sample(self) -> None:
-        """
-        Update self.current_text_file_sample to next line.
-        """
-        if self.current_text_file:
-            sample = self.current_text_file.readline().decode('utf-8')
-            if sample:
-                self.current_text_file_sample = json.loads(sample)
-                # str -> list
-                self.current_text_file_sample['metadata'] = eval(
-                    self.current_text_file_sample['metadata'])
-                return
-        self._get_next_text_file()
-        self._get_next_text_sample()
-
-    def _text_to_token_length(self, texts: list | str) -> list | int:
-        """Convert str or List[str | None] to token nums.
-
-        Args:
-            texts (list | str): str or [str, None, ...]
-        Returns:
-            list | int: None -> 0, str -> token_num
-        """
-        if isinstance(texts, list):
-            # text -> token len
-            # None -> 0
-            total_length = []
-            for text_part in texts:
-                if text_part:
-                    total_length.append(len(self.tokenizer.encode(text_part)))
-                else:
-                    total_length.append(0)
-        elif isinstance(texts, str):
-            total_length = self.tokenizer.encode(texts)
-        else:
-            raise TypeError
-        return total_length
-
-    def _img_size_to_token_length(self, img_size: Tuple[int, int] | int) -> tuple:
-        """Count image tokens (resize by self.max_image_size if set)
-
-        Args:
-            img_size (Tuple[int, int] | int): 
-
-        Returns:
-            tuple: token_num, (H_after_resize, W_after_resize)
-        """
-        if isinstance(img_size, int):
-            img_size = (img_size, img_size)
-        long_side = max(img_size)
-        if (self.max_image_size is not None) and (long_side > self.max_image_size):
-            # need resize
-            resize_ratio = self.max_image_size / long_side
-            if self.keep_ratio:
-                H = round(img_size[0] * resize_ratio)
-                W = round(img_size[1] * resize_ratio)
-            else:
-                H = min(img_size[0], self.max_image_size)
-                W = min(img_size[1], self.max_image_size)
-        else:
-            H = img_size[0]
-            W = img_size[1]
-        h = ceil(H / self.image_patch_size)
-        w = ceil(W / self.image_patch_size)
-        token_num = h * w
-        return int(token_num), (int(H), int(W))
-
-    def _handle_images_and_metadatas(self, images: list, metadatas: list) -> Tuple[list]:
-        """Check image url, count image tokens, update resize to imagemetas.
-
-        Args:
-            images (list): List of image url or None.
-            metadatas (list): List of imagemeta. {'orign_height':int, ...}
-
-        Returns:
-            valid_images (list)
-            token_length (list): None -> 0
-            metadatas_new (list): metadatas[i].update({'height':int, 'width':int})
-        """
-        def _get_valid_imgs(img_paths: list) -> list:
-            """Check image urls
-
-            Args:
-                img_paths (list): List of image url.
-
-            Returns:
-                list: None/invalid url -> 0, valid url -> 1 . 
-            """
-            valid_imgs = []
-            if self.image_src_path:
-                raise NotImplementedError
-                for idx, img_path in enumerate(img_paths):
-                    if img_path:
-                        if (self.image_src_path / img_path).exists:
-                            valid_imgs.append(1)
-                        else:
-                            valid_imgs.append(0)
-                    else:
-                        valid_imgs.append(0)
-            else:
-                for idx, img_path in enumerate(img_paths):
-                    # valid img -> 1
-                    # invalid img -> 0
-                    # None -> 0
-                    if img_path:
-                        try:
-                            request.urlopen(img_path, timeout=3)
-                            valid_imgs.append(1)
-                        except Exception as e:
-                            valid_imgs.append(0)
-                    else:
-                        valid_imgs.append(0)
-            return valid_imgs
-
-        def _update_img_size_list_to_token_length(img_size_list: list) -> tuple:
-            # resize images and calculate token nums
-            token_length = []
-            img_size_list_new = []
-            for img_size in img_size_list:
-                if img_size:
-                    token_num, img_size_new = self._img_size_to_token_length(
-                        img_size)
-                    img_size_list_new.append(img_size_new)
-                    token_length.append(token_num)
-                else:
-                    img_size_list_new.append(None)
-                    token_length.append(0)
-            return token_length, img_size_list_new
-
-        def _update_img_metadatas(metadatas_old: list, img_size_list_new: list) -> list:
-            metadatas_new = []
-            for idx, metadata in enumerate(metadatas_old):
-                if metadata:
-                    metadata_new = deepcopy(metadata)
-                    metadata_new['height'] = img_size_list_new[idx][0]
-                    metadata_new['width'] = img_size_list_new[idx][1]
-                    metadatas_new.append(metadata_new)
-                else:
-                    # set invalid image metas to None
-                    metadatas_new.append(None)
-            return metadatas_new
-
-        valid_images = _get_valid_imgs(images)
-        img_size_list = [((metadata['original_height'], metadata['original_width'])
-                         if metadata else None) for metadata in metadatas]
-        token_length, img_size_list_new = _update_img_size_list_to_token_length(
-            img_size_list)
-        metadatas_new = _update_img_metadatas(
-            metadatas, img_size_list_new)
-        return valid_images, token_length, metadatas_new
-
-    def generate_long_doc_sample(self, token_max: int) -> dict:
-        def hash_url(web_url):
-            if web_url:
-                hash_object = hashlib.sha256(web_url.encode())
-                hex_dig = hash_object.hexdigest()
-                return hex_dig
-            else:
-                return None
-
-        token_num_list = torch.empty([0])
-        token_num = 0
-        token_num_judge = 0
-        text_token_num_list = torch.empty([0])
-        image_token_num_list = torch.empty([0])
-        texts = []
-        images = []
-        valid_image = []
-        metadata = []
-        while token_num_judge < token_max:
-            self._get_next_text_sample()
-            # 1. Count Tokens for Current Sample
-            current_texts_token_num_list = self._text_to_token_length(
-                self.current_text_file_sample['texts'])
-            current_valid_images_list, current_image_token_num_list, current_metadatas = self._handle_images_and_metadatas(
-                self.current_text_file_sample['images'], self.current_text_file_sample['metadata'])
-            # check length
-            assert len(current_texts_token_num_list) == len(
-                current_image_token_num_list)
-            assert len(current_valid_images_list) == len(current_metadatas)
-            assert len(current_texts_token_num_list) == len(
-                self.current_text_file_sample['texts'])
-            assert len(current_valid_images_list) == len(
-                self.current_text_file_sample['images'])
-
-            # 2. Add Texts & Images & Metas
-            current_texts = deepcopy(self.current_text_file_sample['texts'])
-            current_images = deepcopy(self.current_text_file_sample['images'])
-            texts.extend(current_texts)  # str for texts, None for images
-            images.extend(current_images)  # str for images, None for texts
-            # None for texts, dict for images
-            metadata.extend(current_metadatas)
-            # 1 for valid image, 0 for invalid/texts
-            valid_image.extend(current_valid_images_list)
-
-            # check valid images num
-            valid_images_tensor = torch.tensor(valid_image)
-            if (self.max_image_num is not None) and (sum(valid_image) > self.max_image_num):
-                # set extra images to invalid
-                image_num_tensor = torch.cumsum(valid_images_tensor, dim=0)
-                valid_images_tensor *= (image_num_tensor <= self.max_image_num)
-                valid_image = valid_images_tensor.int().tolist()
-
-            # 3. Clip & Break
-            # concate token_num_list
-            current_texts_token_num = torch.tensor(
-                current_texts_token_num_list)
-            current_image_token_num = torch.tensor(
-                current_image_token_num_list)
-            text_token_num_list = torch.cat(
-                [text_token_num_list, current_texts_token_num])
-            image_token_num_list = torch.cat(
-                [image_token_num_list, current_image_token_num])
-            image_token_num_list = image_token_num_list * valid_images_tensor
-            token_num_list = text_token_num_list + image_token_num_list
-            # +1 for final token_sum >= token_max
-            if self.token_max_type == 'all':
-                valid_tokens_num = torch.sum(
-                    (torch.cumsum(token_num_list, dim=0) < token_max)).item() + 1
-            elif self.token_max_type == 'text':
-                valid_tokens_num = torch.sum(
-                    (torch.cumsum(text_token_num_list, dim=0) < token_max)).item() + 1
-            else:
-                raise NotImplementedError
-            texts = texts[:valid_tokens_num]
-            images = images[:valid_tokens_num]
-            valid_image = valid_image[:valid_tokens_num]
-            metadata = metadata[:valid_tokens_num]
-            token_num_list = token_num_list[:valid_tokens_num]
-            token_num = torch.sum(token_num_list).int().item()
-            text_token_num_list = text_token_num_list[:valid_tokens_num]
-            image_token_num_list = image_token_num_list[:valid_tokens_num]
-            # determine token num for judge
-            if self.token_max_type == 'all':
-                token_num_judge = token_num
-            elif self.token_max_type == 'text':
-                token_num_judge = torch.sum(text_token_num_list).int().item()
-            else:
-                raise NotImplementedError
-        text_token_num_total = torch.sum(text_token_num_list).int().item()
-        image_token_num_total = torch.sum(image_token_num_list).int().item()
-        # convert urls to sha256
-        if self.hash_url:
-            images = list(map(hash_url, images))
-        ret = dict(
-            texts=texts,
-            images=images,
-            valid_image=valid_image,
-            metadata=metadata,
-            token_num_total=token_num,
-            text_token_num_total=text_token_num_total,
-            image_token_num_total=image_token_num_total,
-            token_num=token_num_list.int().tolist(),
-            token_num_text=text_token_num_list.int().tolist(),
-            token_num_image=image_token_num_list.int().tolist(),
-            token_max_type=self.token_max_type
-        )
-        return ret
-
-    def generate(self, return_samples: bool = False) -> None:
-        print('## Start Generate...', flush=True)
-        doc_sample_list = [] if return_samples else None
-        for token_max, file_num in zip(self.token_max, self.file_num):
-            print(f'## Generating Max Token {token_max}', flush=True)
-            for file_idx in range(file_num):
-                long_doc_sample = self.generate_long_doc_sample(token_max)
-                if self.save_path:
-                    doc_file_path = self.save_path / \
-                        str(token_max) / f'{file_idx}.json'
-                    doc_file_path.parent.mkdir(exist_ok=True)
-                    doc_file_path.touch(exist_ok=True)
-                    with doc_file_path.open('w') as f:
-                        json.dump(long_doc_sample, f, indent=11)
-                if return_samples:
-                    doc_sample_list.append(long_doc_sample)
-        print('## Complete!', flush=True)
-        return doc_sample_list
-
-
-def generate_longdoc(max_image_num, max_image_size, token_max, token_max_type, file_num):
-    long_doc_generate_wrapper = LongDocumentGenerateWrapper(
-        max_image_num=max_image_num,
-        max_image_size=max_image_size,
-        token_max=token_max,
-        token_max_type=token_max_type,
-        file_num=file_num,
-    )
-    long_doc_generate_wrapper.generate(return_samples=False)
-
-
 if __name__ == '__main__':
-    # generate long documents
+    # Save NeedleHaystackVarTrackingDataset
+    # max_image_num = None
+    # max_image_size = None
+    # token_max = [1000, 2000, 3000, 5000, 9000, 15000]
+
+    # save_dir = Path('output/niah')
+
+    # save_dir.mkdir(exist_ok=True)
+    # dataset_len = 250
+    # depth_percent_max = 90
+    # main_needle_type = 'visual-reasoning'
+    # haystack_needle_types = 'infer-choose'
+    # for token_m in token_max:
+    #     file_name = f'{main_needle_type}_depth_{depth_percent_max}_token_{token_m}.jsonl'
+    #     file_path = save_dir / file_name
+    #     file_path.unlink(missing_ok=True)
+    #     file_path.touch()
+    #     dataset = NeedleHaystackVarTrackingDataset(
+    #         token_max=token_m,
+    #         main_needle_type=main_needle_type,
+    #         haystack_needle_types=haystack_needle_types,
+    #         depth_percent_max=depth_percent_max,
+    #         dataset_len=dataset_len
+    #     )
+    #     for i in range(dataset_len):
+    #         data = dataset[i]
+    #         with jsonlines.open(str(file_path), 'a') as f:
+    #             f.write(data)
+    # main_needle_type = 'infer-choose'
+    # haystack_needle_types = 'visual-reasoning'
+    # for token_m in token_max:
+    #     file_name = f'{main_needle_type}_depth_{depth_percent_max}_token_{token_m}.jsonl'
+    #     file_path = save_dir / file_name
+    #     file_path.unlink(missing_ok=True)
+    #     file_path.touch()
+    #     dataset = NeedleHaystackVarTrackingDataset(
+    #         token_max=token_m,
+    #         main_needle_type=main_needle_type,
+    #         haystack_needle_types=haystack_needle_types,
+    #         depth_percent_max=depth_percent_max,
+    #         dataset_len=dataset_len
+    #     )
+    #     for i in range(dataset_len):
+    #         data = dataset[i]
+    #         with jsonlines.open(str(file_path), 'a') as f:
+    #             f.write(data)
+    
+    # Save Visualization
     max_image_num = None
     max_image_size = None
-    token_max_list = [[1000, 15000], [2000, 9000], [3000, 5000]]
+    token_max = 5000
     token_max_type = 'text'
-    file_num = 100
-    process_list = []
-    for token_max in token_max_list:
-        process_list.append(Process(target=generate_longdoc, args=[
-                            max_image_num, max_image_size, token_max, token_max_type, file_num]))
-    [p.start() for p in process_list]
-    [p.join() for p in process_list]
-
-    # Save sNeedleHaystackVarTrackingDataset
-    max_image_num = None
-    max_image_size = None
-    token_max = [1000, 2000, 3000, 5000, 9000, 15000]
-
-    save_dir = Path('output/niah')
-
-    save_dir.mkdir(exist_ok=True)
-    dataset_len = 250
-    depth_percent_max = 90
+    file_num = 10
+    longdoc_dir = './output/longdocs_with_path/'
     main_needle_type = 'visual-reasoning'
     haystack_needle_types = 'infer-choose'
-    for token_m in token_max:
-        file_name = f'{main_needle_type}_depth_{depth_percent_max}_token_{token_m}.jsonl'
-        file_path = save_dir / file_name
-        file_path.unlink(missing_ok=True)
-        file_path.touch()
-        dataset = NeedleHaystackVarTrackingDataset(
-            token_max=token_m,
-            main_needle_type=main_needle_type,
-            haystack_needle_types=haystack_needle_types,
-            depth_percent_max=depth_percent_max,
-            dataset_len=dataset_len
-        )
-        for i in range(dataset_len):
-            data = dataset[i]
-            with jsonlines.open(str(file_path), 'a') as f:
-                f.write(data)
-    main_needle_type = 'infer-choose'
-    haystack_needle_types = 'visual-reasoning'
-    for token_m in token_max:
-        file_name = f'{main_needle_type}_depth_{depth_percent_max}_token_{token_m}.jsonl'
-        file_path = save_dir / file_name
-        file_path.unlink(missing_ok=True)
-        file_path.touch()
-        dataset = NeedleHaystackVarTrackingDataset(
-            token_max=token_m,
-            main_needle_type=main_needle_type,
-            haystack_needle_types=haystack_needle_types,
-            depth_percent_max=depth_percent_max,
-            dataset_len=dataset_len
-        )
-        for i in range(dataset_len):
-            data = dataset[i]
-            with jsonlines.open(str(file_path), 'a') as f:
-                f.write(data)
+    depth_percent_max = 90
+    dataset_len = 20
+    dataset = NeedleHaystackVarTrackingDataset(
+        token_max=token_max,
+        longdoc_dir=longdoc_dir,
+        main_needle_type=main_needle_type,
+        haystack_needle_types=haystack_needle_types,
+        depth_percent_max=depth_percent_max,
+        dataset_len=dataset_len,
+        image_file_name_only=False
+    )
+    for i in range(dataset_len):
+        with open(f'./output/visualization/{token_max}/{main_needle_type}_{i}.md', 'w') as f:
+            f.write(dataset.__visitem__(i))
