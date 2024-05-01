@@ -27,7 +27,7 @@ BOX_END_TOKEN = '</box>'
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
-needle_find_path = '/mnt/petrelfs/renyiming/dataset/sea-needle/data/needle-find.json'
+needle_find_path = '/mnt/petrelfs/renyiming/dataset/sea-needle/data/needle-find-v2.json'
 needle_infer_pan_path = '/mnt/petrelfs/renyiming/dataset/sea-needle/data/needle-infer-3-pan.json'
 needle_img_path ='/mnt/petrelfs/renyiming/dataset/sea-needle/data/needle-find-v2.json'
 
@@ -65,8 +65,8 @@ def select_needle(file_path):
 
 def insert_useless_needle(sample):
     needle = select_needle(needle_find_path)
-    while sample['find_answer'] == needle['answer']:
-        needle = select_needle(needle_find_path)
+    # while sample['find_answer'] == needle['answer']:
+    #     needle = select_needle(needle_find_path)
     special_word = needle['sentence']
     article_list = sample['texts']
     
@@ -300,7 +300,9 @@ def insert_multiple_needle(sample, forbid_word=None):
     needle = select_needle(needle_find_path)
     while forbid_word == needle['answer']:
         needle = select_needle(needle_find_path)
-    special_word = needle['sentence']
+    special_word = needle['answer']
+    needle_word = needle['needle']
+    special_sentence = needle['sentence']
     article_list = sample['texts']
     
     # Define a regex to correctly split text into sentences, considering punctuation
@@ -316,7 +318,7 @@ def insert_multiple_needle(sample, forbid_word=None):
             article_indices.extend([idx] * len(parts))
     
     # Randomly determine the number of special words to insert (at most one per sentence)
-    max_sentences_to_insert = len(sentences)
+    max_sentences_to_insert = min(int(len(sentences)/2), len(article_list))
     words_to_insert = random.randint(1, max_sentences_to_insert)
     
     # Randomly select positions to insert the special words
@@ -331,10 +333,18 @@ def insert_multiple_needle(sample, forbid_word=None):
     for pos in insert_position_list:
         before = sum(sen_tokens[:pos])
         total = sum(sen_tokens)
+        print('before', before)
+        print('total', total)
         locations.append(before / total)
+        
+    print('locations', locations)
     
     # Insert the special word at the end of chosen sentences
-    for pos in insert_positions:
+    first_pos = insert_positions[0]
+    print('len(sentence)', len(sentences))
+    print('insert_pos', insert_positions)
+    sentences[first_pos] += ' ' + special_sentence
+    for pos in insert_positions[1:]:
         sentences[pos] += ' ' + special_word
     
     # Reconstruct the articles
@@ -345,9 +355,9 @@ def insert_multiple_needle(sample, forbid_word=None):
             article_list[i] = ' '.join(sentences[current_sentence_index:current_sentence_index + num_sentences_in_article])
             current_sentence_index += num_sentences_in_article
     
-    sample['mul_needle'] = special_word
-    sample['mul_question'] = f'How many "{special_word}" are in the article?'
-    sample['mul_answer'] = words_to_insert
+    sample['mul_needle'] = special_sentence
+    sample['mul_question'] = needle['count_question']
+    sample['mul_answer'] = words_to_insert - 1 ###第一个位置是句子，答案是插入位置数-1
     sample['mul_needle_position'] = locations
     
     for i in range(3):
@@ -658,17 +668,17 @@ class InterleavedDataset(Dataset):
         # 'images', 'metadata', 'general_metadata', 'texts', 'doc_loc', 'valid_image'
         sample = self.load_data(index)
 
-        sample, forbid_word = insert_find_needle(sample)
-        sample = insert_infer_needle(sample)
-        sample = insert_multiple_needle(sample, forbid_word)
+        # sample, forbid_word = insert_find_needle(sample)
+        # sample = insert_infer_needle(sample)
+        sample = insert_multiple_needle(sample)
         
-        sample_key = ['find_needle', 'find_question', 'find_answer', 'find_needle_location',
-                      'infer_needle', 'infer_question', 'infer_answer',
-                      'mul_needle', 'mul_question', 'mul_answer'
-        ]
-        for one_key in sample_key:
-            print(one_key+':', sample[one_key])
-            print('\n')
+        # sample_key = ['find_needle', 'find_question', 'find_answer', 'find_needle_location',
+        #               'infer_needle', 'infer_question', 'infer_answer',
+        #               'mul_needle', 'mul_question', 'mul_answer'
+        # ]
+        # for one_key in sample_key:
+        #     print(one_key+':', sample[one_key])
+        #     print('\n')
             
         print(sample.keys())
         # add_dict_to_json(sample)
