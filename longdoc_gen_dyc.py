@@ -1,5 +1,6 @@
 import io
 import json
+import jsonlines
 import hashlib
 
 from math import ceil
@@ -13,8 +14,11 @@ import torch
 import tiktoken
 
 from petrel_client.client import Client
+from tqdm import tqdm
 
 from utils_dyc import (HTTP_PROXY)
+
+null = None
 
 
 class LongDocumentGenerateWrapper:
@@ -56,7 +60,8 @@ class LongDocumentGenerateWrapper:
                  petrel_config_path: str = '~/petreloss.conf',
                  petrel_cluster: str = 'obelisc',
                  hash_url: bool = True,
-                 save_path: Optional[str] = './output/longdocs/'
+                 save_path: Optional[str] = './output/longdocs/',
+                 from_scratch: bool = False
                  ):
         """Wrapper for generate long documents.
 
@@ -74,8 +79,9 @@ class LongDocumentGenerateWrapper:
             petrel_cluster (str): Use your personal petreloss cluster. Defaults to 'obelisc'.
             hash_url (bool): Whether replace urls of images to sha256. Default to True.
             save_path (Optional[str], optional): save path for long documents. Defaults to './output/longdocs/'.
+            from_scratch (bool): Remove old longdoc files.
         """
-        print(f'## Init LongDocumentGenerateWrapper', flush=True)
+        print(f'## Init LongDocumentGenerateWrapper')
         # 1. Manage Generation Params
         self.text_src_path = text_src_path
         self.image_src_path = None
@@ -99,12 +105,12 @@ class LongDocumentGenerateWrapper:
         self.save_path = Path(save_path)
         self.save_path.mkdir(parents=True, exist_ok=True)
         self.hash_url = hash_url  # whether hash image urls
-        print(f'## Tokenizer:        {tokenizer}', flush=True)
-        print(f'## Token Num max:    {self.token_max}', flush=True)
-        print(f'## Image Num max:    {self.max_image_num}', flush=True)
-        print(f'## Image Size max:   {self.max_image_size}', flush=True)
-        print(f'## Image Patch Size: {self.image_patch_size}', flush=True)
-        print(f'## LongDocs saved at {str(self.save_path)}', flush=True)
+        print(f'## Tokenizer:        {tokenizer}')
+        print(f'## Token Num max:    {self.token_max}')
+        print(f'## Image Num max:    {self.max_image_num}')
+        print(f'## Image Size max:   {self.max_image_size}')
+        print(f'## Image Patch Size: {self.image_patch_size}')
+        print(f'## LongDocs saved at {str(self.save_path)}')
 
         # 2. Manage File Loaders
         # Get file generator and check
@@ -121,7 +127,7 @@ class LongDocumentGenerateWrapper:
         try:
             next(self.text_file_path_generator)
         except Exception as e:
-            print('Invalid Text Path or Petrel Client', flush=True)
+            print('Invalid Text Path or Petrel Client')
             raise e
         self.current_text_file_path = None  # str
         self.current_text_file = None  # io.BytesIO, current file
@@ -136,6 +142,7 @@ class LongDocumentGenerateWrapper:
                  'AppleWebKit/537.36 (KHTML, like Gecko) '
                  'Chrome/73.0.3683.86 Safari/537.36')]
             request.install_opener(opener)
+        self.from_scratch = from_scratch
 
     def _get_next_text_file(self) -> None:
         """
@@ -409,23 +416,56 @@ class LongDocumentGenerateWrapper:
         )
         return ret
 
+    def check_longdoc_file(self, file: str) -> int:
+        # check unbroken lines in file
+        valid_lines = 0
+        longdoc_list = []
+        try:
+            with jsonlines.open(file, 'r') as reader:
+                for longdoc in tqdm(reader, desc=f'checking {file}', unit='sample'):
+                    longdoc_list.append(longdoc)
+                    valid_lines += 1
+            if valid_lines:
+                print(f'All lines valid in {file}!')
+        except Exception as e:
+            print(f'{e} at line {valid_lines}, adding samples...')
+            with jsonlines.open(file, 'w') as writer:
+                writer.write_all(longdoc_list)
+        return valid_lines
+
     def generate(self, return_samples: bool = False) -> None:
-        print('## Start Generate...', flush=True)
+        print('## Start Generate...')
         doc_sample_list = [] if return_samples else None
         for token_max, file_num in zip(self.token_max, self.file_num):
-            print(f'## Generating Max Token {token_max}', flush=True)
-            for file_idx in range(file_num):
-                long_doc_sample = self.generate_long_doc_sample(token_max)
-                if self.save_path:
-                    doc_file_path = self.save_path / \
-                        str(token_max) / f'{file_idx}.json'
-                    doc_file_path.parent.mkdir(exist_ok=True)
-                    doc_file_path.touch(exist_ok=True)
-                    with doc_file_path.open('w') as f:
-                        json.dump(long_doc_sample, f, indent=11)
-                if return_samples:
-                    doc_sample_list.append(long_doc_sample)
-        print('## Complete!', flush=True)
+            print(f'## Generating Max Token {token_max}')
+            if self.save_path:
+                doc_file_path = self.save_path / \
+                    f'{token_max}_token_{self.token_max_type}_{file_num}_samples.jsonl'
+                doc_file_path.parent.mkdir(exist_ok=True)
+                if self.from_scratch:
+                    doc_file_path.unlink(missing_ok=True)
+                doc_file_path.touch(exist_ok=True)
+            valid_lines = self.check_longdoc_file(str(doc_file_path))
+            while valid_lines < file_num:
+                for file_idx in tqdm(range(valid_lines, file_num), desc=f'{token_max} token', unit='sample', dynamic_ncols=True):
+                    success = False
+                    while not success:
+                        try:
+                            long_doc_sample = self.generate_long_doc_sample(
+                                token_max)
+                            if self.save_path:
+                                with jsonlines.open(str(doc_file_path), 'a') as f:
+                                    f.write(long_doc_sample)
+                            if return_samples:
+                                doc_sample_list.append(long_doc_sample)
+                            success = True
+                        except UnicodeEncodeError as e:
+                            print(e)
+                            print('Retrying...')
+                        except Exception as e:
+                            raise e
+                valid_lines = self.check_longdoc_file(str(doc_file_path))
+        print('## Complete!')
         return doc_sample_list
 
 
@@ -439,11 +479,12 @@ def generate_longdoc(max_image_num, max_image_size, token_max, token_max_type, f
     )
     long_doc_generate_wrapper.generate(return_samples=False)
 
+
 if __name__ == '__main__':
     # generate long documents
     max_image_num = None
     max_image_size = None
-    token_max_list = [[1000, 15000], [2000, 9000], [3000, 5000]]
+    token_max_list = [[15000], [2000, 9000], [1000, 3000, 5000]]
     token_max_type = 'text'
     file_num = 100
     process_list = []

@@ -46,7 +46,9 @@ class NeedleHaystackVarTrackingDataset(Dataset):
         """
         Args:
             tokenizer_counter (str): tiktoken tokenizer for count text tokens. Defaults to 'gpt-4'.
-            longdoc_dir (str): Dir for long documents. Files should be like longdoc_dic / token_num / 0.json .Defaults to './output/longdocs'.
+            longdoc_dir (str): Dir for long documents. Files should be like 
+                longdoc_dic / {token_max}_token_{token_max_type}_{file_num}_samples.jsonl 
+                Defaults to './output/longdocs'.
             longdoc_reuse_num (int): Number of samples share one long document. Defaults to 5.
             needle_meta_dir (str): Dir for meta files. Defaults to './metas'.
             main_needle_type (str): Needle type for Q&A. Defaults to 'visual-reasoning'.
@@ -85,8 +87,13 @@ class NeedleHaystackVarTrackingDataset(Dataset):
         self.depth_percent_max = depth_percent_max
         # LongDocs paths
         self.token_max = token_max
-        self.longdoc_path_list = list((
-            self.longdoc_dir / str(self.token_max)).iterdir())
+        self.longdoc_files = None
+        for longdoc_file in self.longdoc_dir.iterdir():
+            if re.match(f'^{token_max}_token', longdoc_file.name):
+                self.longdoc_files = [sample for sample in jsonlines.open(longdoc_file, 'r').iter()]
+                break
+        if not self.longdoc_files:
+            raise AssertionError
         # Needle meta files
         # {needle_type_0: [needle_dict_0, ...], needle_type_1: [...], ...}
         self.needle_meta_files = dict()
@@ -100,9 +107,9 @@ class NeedleHaystackVarTrackingDataset(Dataset):
 
         # 2. Assign Needles to each LongDoc
         self.dataset_len = dataset_len if dataset_len else len(
-            self.longdoc_path_list) * self.longdoc_reuse_num
+            self.longdoc_files) * self.longdoc_reuse_num
         assert self.dataset_len <= len(
-            self.longdoc_path_list) * self.longdoc_reuse_num
+            self.longdoc_files) * self.longdoc_reuse_num
         """Needle list format
         [dict(
             main=main_needle,
@@ -166,7 +173,7 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                     h_needle_type = self.haystack_needle_types[h_needle_type_idx]
                     needle_idx = random.randint(
                         0, self.needle_meta_files_num[h_needle_type] - 1)
-                    depth_percent = random.randint(10, 100)
+                    depth_percent = random.randint(0, 100)
                     assigned['haystack'].append({'needle_type': h_needle_type,
                                                  'index': needle_idx,
                                                  'depth_percent': depth_percent})
@@ -183,8 +190,7 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                 # See LongDocumentGenerateWrapper
             }
         """
-        longdoc_path = self.longdoc_path_list[index // self.longdoc_reuse_num]
-        longdoc_file = deepcopy(json.load(longdoc_path.open()))
+        longdoc_file = deepcopy(self.longdoc_files[index // self.longdoc_reuse_num])
         return longdoc_file
 
     def _join_longdoc(self, longdoc_file) -> Tuple[str, dict]:
@@ -379,6 +385,9 @@ class NeedleHaystackVarTrackingDataset(Dataset):
             """
             # tokens_context = self.tokenizer.encode(context)
             period_tokens = self.tokenizer_counter.encode('.')
+            if insertion_point == len(tokens_context):
+                # insert at last
+                return len(tokens_context) - 1
             try:
                 while (insertion_point > 0) and (tokens_context[insertion_point] not in period_tokens):
                     insertion_point -= 1
@@ -395,19 +404,11 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                     return find_nearest_period(insertion_point - 1, tokens_context)
             return insertion_point
 
-        def insert_image(image_in: dict, longdoc: str, longdoc_metas: dict, depth_percent: int) -> Tuple[str | dict]:
-            """Insert image to longdoc at depth_percent.
-                image_in
-                {
-                    'type': str
-                    'path': str,
-                    'token_num': int,
-                    'meta': dict
-                }
-            """
-
-            # find insert pos
-            text_split_list = longdoc.split(self.image_alt_sym)
+        def find_insert_points(text_split_list: list, depth_percent_list: List[int]):
+            # infos need find
+            insert_piece_idx_list = []
+            period_in_piece_idx_list = []
+            # count tokens for each split
             token_list = []
             for idx, text in enumerate(text_split_list):
                 if len(text) == 0:
@@ -416,100 +417,107 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                     token_list.append(len(self.tokenizer_counter.encode(text)))
             token_total = sum(token_list)
             token_cumsum = torch.cumsum(torch.tensor(token_list), 0)
-            token_num_depth = int(token_total * (1 - depth_percent / 100))
-            insert_piece_idx = torch.sum(
-                token_cumsum <= token_num_depth).item()
-            longdoc_metas['image_list'] = \
-                longdoc_metas['image_list'][:insert_piece_idx] \
-                + [{'type': image_in['type'],
-                    'token_num': image_in['token_num'],
-                    'path': image_in['path'],
-                    'meta': image_in['meta']}] \
-                + longdoc_metas['image_list'][insert_piece_idx:]
-            longdoc_metas['images_token'] += image_in['token_num']
-            if insert_piece_idx >= 1:
-                rest_token_num = token_num_depth - \
-                    token_cumsum[insert_piece_idx - 1]
-            else:
-                rest_token_num = token_num_depth
-            insert_piece = text_split_list[insert_piece_idx]
-            insert_piece_token = self.tokenizer_counter.encode(insert_piece)
-            period_idx = find_nearest_period(
-                rest_token_num, insert_piece_token)
-            if period_idx > 0:
-                insert_piece_pre = self.tokenizer_counter.decode(
-                    insert_piece_token[:period_idx + 1])
-                insert_piece_post = self.tokenizer_counter.decode(
-                    insert_piece_token[period_idx + 1:])
-            else:
-                insert_piece_pre = ''
-                insert_piece_post = insert_piece
-            text_split_list = text_split_list[:insert_piece_idx] + [
-                insert_piece_pre, insert_piece_post] + text_split_list[insert_piece_idx + 1:]
-            longdoc_new = self.image_alt_sym.join(text_split_list)
-            return longdoc_new, longdoc_metas
-
-        def insert_text(text_in: str, longdoc: str, longdoc_metas: dict, depth_percent: int) -> Tuple[str | dict]:
-            # find insert pos
-            text_split_list = longdoc.split(self.image_alt_sym)
-            token_list = []
-            for idx, text in enumerate(text_split_list):
-                if len(text) == 0:
-                    token_list.append(0)
+            # find insert piece
+            for dp in depth_percent_list:
+                token_num_depth = int(token_total * (1 - dp / 100))
+                insert_piece_idx = torch.sum(
+                    token_cumsum <= token_num_depth).item()
+                if insert_piece_idx >= len(text_split_list):
+                    # for 0 depth percent
+                    insert_piece_idx -= 1
+                    while len(text_split_list[insert_piece_idx]) == 0:
+                        insert_piece_idx -= 1
+                    rest_token_num = token_num_depth - \
+                        token_cumsum[insert_piece_idx - 1]
+                elif insert_piece_idx >= 1:
+                    rest_token_num = token_num_depth - \
+                        token_cumsum[insert_piece_idx - 1]
                 else:
-                    token_list.append(len(self.tokenizer_counter.encode(text)))
-            token_total = sum(token_list)
-            token_cumsum = torch.cumsum(torch.tensor(token_list), 0)
-            token_num_depth = int(token_total * (1 - depth_percent / 100))
-            insert_piece_idx = torch.sum(
-                token_cumsum <= token_num_depth).item()
+                    rest_token_num = token_num_depth
+                insert_piece_idx_list.append(insert_piece_idx)
+                insert_piece = text_split_list[insert_piece_idx]
+                insert_piece_token = self.tokenizer_counter.encode(insert_piece)
+                period_token_idx = find_nearest_period(
+                    rest_token_num, insert_piece_token)
+                if period_token_idx > 0:
+                    period_idx = len(self.tokenizer_counter.decode(insert_piece_token[:period_token_idx + 1])) - 1
+                else:
+                    period_idx = 0
+                period_in_piece_idx_list.append(period_idx)
+            return insert_piece_idx_list, period_in_piece_idx_list
 
-            if insert_piece_idx >= 1:
-                rest_token_num = token_num_depth - \
-                    token_cumsum[insert_piece_idx - 1]
-            else:
-                rest_token_num = token_num_depth
-            insert_piece = text_split_list[insert_piece_idx]
-            insert_piece_token = self.tokenizer_counter.encode(insert_piece)
-            period_idx = find_nearest_period(
-                rest_token_num, insert_piece_token)
-            if period_idx > 0:
-                insert_piece_pre = self.tokenizer_counter.decode(
-                    insert_piece_token[:period_idx + 1])
-                insert_piece_post = self.tokenizer_counter.decode(
-                    insert_piece_token[period_idx + 1:])
-            else:
-                insert_piece_pre = ''
-                insert_piece_post = insert_piece
-            text_split_list = text_split_list[:insert_piece_idx] + [
-                insert_piece_pre + text_in + insert_piece_post] + text_split_list[insert_piece_idx + 1:]
+        def insert_texts_and_images(text_or_image_in_list: List[str | dict], text_or_image: List[str], longdoc: str, longdoc_metas: dict, depth_percent_list: List[int]) -> Tuple[str | dict]:
+            if not isinstance(text_or_image_in_list, list):
+                text_or_image_in_list = [text_or_image_in_list]
+            if not isinstance(text_or_image, list):
+                text_or_image = [text_or_image]
+            if not isinstance(depth_percent_list, list):
+                depth_percent_list = [depth_percent_list]
+            assert len(text_or_image_in_list) == len(text_or_image)
+            assert len(text_or_image_in_list) == len(depth_percent_list)
+            text_split_list = longdoc.split(self.image_alt_sym)
+            # 1. Find insert pos
+            insert_piece_idx_list, period_in_piece_idx_list = find_insert_points(text_split_list, depth_percent_list)
+            # 2. Insert from needles[-1] to needles[0] (for descending order of depth)
+            text_or_image_in_list_new = text_or_image_in_list.copy()
+            text_or_image_in_list_new.reverse()
+            insert_piece_idx_list.reverse()
+            period_in_piece_idx_list.reverse()
+            for item_in, t_or_m, insert_piece_idx, period_in_piece_idx in \
+                zip(text_or_image_in_list_new, text_or_image, insert_piece_idx_list, period_in_piece_idx_list):
+                insert_piece = text_split_list[insert_piece_idx]
+                if period_in_piece_idx > 0:
+                    insert_piece_pre = insert_piece[:period_in_piece_idx + 1]
+                    insert_piece_post = insert_piece[period_in_piece_idx + 1:]
+                else:
+                    insert_piece_pre = ''
+                    insert_piece_post = insert_piece
+                if t_or_m == 'text':
+                    text_split_list = text_split_list[:insert_piece_idx] + [
+                        insert_piece_pre + item_in + insert_piece_post] + text_split_list[insert_piece_idx + 1:]
+                    longdoc_metas['texts_token'] += len(
+                        self.tokenizer_counter.encode(item_in))
+                elif t_or_m == 'image':
+                    text_split_list = text_split_list[:insert_piece_idx] + [
+                        insert_piece_pre + self.image_alt_sym + insert_piece_post] + text_split_list[insert_piece_idx + 1:]
+                    longdoc_metas['images_token'] += item_in['token_num']
+                    longdoc_metas['image_list'] = \
+                    longdoc_metas['image_list'][:insert_piece_idx] \
+                        + [{'type': item_in['type'],
+                            'token_num': item_in['token_num'],
+                            'path': item_in['path'],
+                            'meta': item_in['meta']}] \
+                        + longdoc_metas['image_list'][insert_piece_idx:]
+                else:
+                    raise NotImplementedError
+                
             longdoc_new = self.image_alt_sym.join(text_split_list)
-            longdoc_metas['texts_token'] += len(
-                self.tokenizer_counter.encode(text_in))
+            if longdoc_new.count(self.image_alt_sym) != len(longdoc_metas['image_list']):
+                with open('temp.txt', 'w') as f:
+                    f.write(longdoc_new)
+                raise AssertionError
             return longdoc_new, longdoc_metas
 
         needle_type = needle['needle_type']
+        # for multiple needles, insert uniformly
+        if depth_percent >= 3:
+            depth_percent_list = [d for d in range(
+                depth_percent, -1, -(depth_percent//len(needle['needles'])))]
+            depth_percent_list = depth_percent_list[:len(needle['needles'])]
+        else:
+            depth_percent_list = [depth_percent, 0, 0]
+            depth_percent_list = depth_percent_list[:len(needle['needles'])]
         # insert text/image needles into longdoc
+        assert len(depth_percent_list) == len(
+            needle['needles']), f'list: {depth_percent_list}, dp:{depth_percent}, len:{len(needle["needles"])}'
         if needle_type == 'infer-choose':
-            depth_percent_list = [d for d in range(
-                depth_percent, 0, -(depth_percent//len(needle['needles'])))]
-            depth_percent_list = depth_percent_list[:len(needle['needles'])]
-            assert len(depth_percent_list) == len(
-                needle['needles']), f'list: {depth_percent_list}, dp:{depth_percent}, len:{len(needle["needles"])}'
-            for needle_text, dp in zip(needle['needles'], depth_percent_list):
-                longdoc, longdoc_metas = insert_text(
-                    needle_text, longdoc, longdoc_metas, dp)
+            text_or_image = ['text'] * len(needle['needles'])
         elif needle_type == 'visual-reasoning':
-            depth_percent_list = [d for d in range(
-                depth_percent, 0, -(depth_percent//len(needle['needles'])))]
-            depth_percent_list = depth_percent_list[:len(needle['needles'])]
-            assert len(depth_percent_list) == len(
-                needle['needles']), f'list: {depth_percent_list}, dp:{depth_percent}, len:{len(needle["needles"])}'
-            for needle_image, dp in zip(needle['needles'], depth_percent_list):
-                longdoc, longdoc_metas = insert_image(
-                    needle_image, longdoc, longdoc_metas, dp)
+            text_or_image = ['image'] * len(needle['needles'])
         else:
             raise NotImplementedError
+        longdoc, longdoc_metas = insert_texts_and_images(
+            needle['needles'], text_or_image, longdoc, longdoc_metas, depth_percent_list)
         return longdoc, longdoc_metas
 
     def _generate_prompt(self, context: str, retrieval_question: str) -> str:
@@ -580,6 +588,12 @@ class NeedleHaystackVarTrackingDataset(Dataset):
             else:
                 raise NotImplementedError
             return
+        
+        def is_descending(depth_list: list) -> bool:
+            for n in range(len(depth_list) - 1):
+                if depth_list[n + 1] > depth_list[n]:
+                    return False
+            return True
         # 1. Update All Needle Depth in LongDoc
         needle_depth = dict()
         needles_list = list(needles.items())
@@ -616,7 +630,11 @@ class NeedleHaystackVarTrackingDataset(Dataset):
                         needle_depth[needle_name].append(depth)
             else:
                 raise NotImplementedError
-
+            # check depth order for all needles
+            for needle_name, depth_list in needle_depth.items():
+                if not is_descending(depth_list):
+                    print(f'{needle_name} depth_list not descending:', depth_list)
+                    raise AssertionError
         # 2. Modify Question and Choices by Main Needle
         main_needle_name, main_needle_dict = needles_list[-1]
         question = None
@@ -655,7 +673,9 @@ class NeedleHaystackVarTrackingDataset(Dataset):
             for image_dict in longdoc_metas['image_list']:
                 image_path_list.append(image_dict['path'])
         # check image num
-        assert longdoc.count(self.image_alt_sym) == len(image_path_list)
+        assert longdoc.count(self.image_alt_sym) == len(image_path_list), \
+            f'{longdoc.count(self.image_alt_sym)} images in doc, '\
+            f'but {len(image_path_list)} images in image list'
         result['images_list'] = image_path_list
         result['context'] = longdoc
         result['question'] = question
@@ -836,72 +856,73 @@ class NeedleHaystackVarTrackingDataset(Dataset):
 
 if __name__ == '__main__':
     # Save NeedleHaystackVarTrackingDataset
-    # max_image_num = None
-    # max_image_size = None
-    # token_max = [1000, 2000, 3000, 5000, 9000, 15000]
-
-    # save_dir = Path('output/niah')
-
-    # save_dir.mkdir(exist_ok=True)
-    # dataset_len = 250
-    # depth_percent_max = 90
-    # main_needle_type = 'visual-reasoning'
-    # haystack_needle_types = 'infer-choose'
-    # for token_m in token_max:
-    #     file_name = f'{main_needle_type}_depth_{depth_percent_max}_token_{token_m}.jsonl'
-    #     file_path = save_dir / file_name
-    #     file_path.unlink(missing_ok=True)
-    #     file_path.touch()
-    #     dataset = NeedleHaystackVarTrackingDataset(
-    #         token_max=token_m,
-    #         main_needle_type=main_needle_type,
-    #         haystack_needle_types=haystack_needle_types,
-    #         depth_percent_max=depth_percent_max,
-    #         dataset_len=dataset_len
-    #     )
-    #     for i in range(dataset_len):
-    #         data = dataset[i]
-    #         with jsonlines.open(str(file_path), 'a') as f:
-    #             f.write(data)
-    # main_needle_type = 'infer-choose'
-    # haystack_needle_types = 'visual-reasoning'
-    # for token_m in token_max:
-    #     file_name = f'{main_needle_type}_depth_{depth_percent_max}_token_{token_m}.jsonl'
-    #     file_path = save_dir / file_name
-    #     file_path.unlink(missing_ok=True)
-    #     file_path.touch()
-    #     dataset = NeedleHaystackVarTrackingDataset(
-    #         token_max=token_m,
-    #         main_needle_type=main_needle_type,
-    #         haystack_needle_types=haystack_needle_types,
-    #         depth_percent_max=depth_percent_max,
-    #         dataset_len=dataset_len
-    #     )
-    #     for i in range(dataset_len):
-    #         data = dataset[i]
-    #         with jsonlines.open(str(file_path), 'a') as f:
-    #             f.write(data)
-    
-    # Save Visualization
     max_image_num = None
     max_image_size = None
-    token_max = 5000
-    token_max_type = 'text'
-    file_num = 10
-    longdoc_dir = './output/longdocs_with_path/'
+    token_max = [1000, 2000, 3000, 5000, 9000, 15000]
+
+    save_dir = Path('output/niah')
+
+    save_dir.mkdir(exist_ok=True)
+    dataset_len = 100
+    depth_percent_max_list = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0]
     main_needle_type = 'visual-reasoning'
     haystack_needle_types = 'infer-choose'
-    depth_percent_max = 90
-    dataset_len = 20
-    dataset = NeedleHaystackVarTrackingDataset(
-        token_max=token_max,
-        longdoc_dir=longdoc_dir,
-        main_needle_type=main_needle_type,
-        haystack_needle_types=haystack_needle_types,
-        depth_percent_max=depth_percent_max,
-        dataset_len=dataset_len,
-        image_file_name_only=False
-    )
-    for i in range(dataset_len):
-        with open(f'./output/visualization/{token_max}/{main_needle_type}_{i}.md', 'w') as f:
-            f.write(dataset.__visitem__(i))
+    for depth_percent_max in depth_percent_max_list:
+        for token_m in token_max:
+            file_name = f'{main_needle_type}_depth_{depth_percent_max}_token_{token_m}.jsonl'
+            file_path = save_dir / file_name
+            file_path.unlink(missing_ok=True)
+            file_path.touch()
+            dataset = NeedleHaystackVarTrackingDataset(
+                token_max=token_m,
+                main_needle_type=main_needle_type,
+                haystack_needle_types=haystack_needle_types,
+                depth_percent_max=depth_percent_max,
+                dataset_len=dataset_len
+            )
+            for i in range(dataset_len):
+                data = dataset[i]
+                with jsonlines.open(str(file_path), 'a') as f:
+                    f.write(data)
+        main_needle_type = 'infer-choose'
+        haystack_needle_types = 'visual-reasoning'
+        for token_m in token_max:
+            file_name = f'{main_needle_type}_depth_{depth_percent_max}_token_{token_m}.jsonl'
+            file_path = save_dir / file_name
+            file_path.unlink(missing_ok=True)
+            file_path.touch()
+            dataset = NeedleHaystackVarTrackingDataset(
+                token_max=token_m,
+                main_needle_type=main_needle_type,
+                haystack_needle_types=haystack_needle_types,
+                depth_percent_max=depth_percent_max,
+                dataset_len=dataset_len
+            )
+            for i in range(dataset_len):
+                data = dataset[i]
+                with jsonlines.open(str(file_path), 'a') as f:
+                    f.write(data)
+    
+    # Save Visualization
+    # max_image_num = None
+    # max_image_size = None
+    # token_max = 5000
+    # token_max_type = 'text'
+    # file_num = 10
+    # longdoc_dir = './output/longdocs_with_path/'
+    # main_needle_type = 'visual-reasoning'
+    # haystack_needle_types = 'infer-choose'
+    # depth_percent_max = 90
+    # dataset_len = 20
+    # dataset = NeedleHaystackVarTrackingDataset(
+    #     token_max=token_max,
+    #     longdoc_dir=longdoc_dir,
+    #     main_needle_type=main_needle_type,
+    #     haystack_needle_types=haystack_needle_types,
+    #     depth_percent_max=depth_percent_max,
+    #     dataset_len=dataset_len,
+    #     image_file_name_only=False
+    # )
+    # for i in range(dataset_len):
+    #     with open(f'./output/visualization/{token_max}/{main_needle_type}_{i}.md', 'w') as f:
+    #         f.write(dataset.__visitem__(i))
