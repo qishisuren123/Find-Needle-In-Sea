@@ -141,19 +141,14 @@ class VQAEval:
             "youve": "you've",
         }
         self.manualMap = {
-            "none": "0",
-            "zero": "0",
-            "one": "1",
-            "two": "2",
-            "three": "3",
-            "four": "4",
-            "five": "5",
-            "six": "6",
-            "seven": "7",
-            "eight": "8",
-            "nine": "9",
-            "ten": "10",
-        }
+        "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4,
+        "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+        "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+        "fourteen": 14, "fifteen": 15, "sixteen": 16,
+        "seventeen": 17, "eighteen": 18, "nineteen": 19,
+        "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
+        "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90
+    }
         self.articles = ["a", "an", "the"]
 
         self.periodStrip = re.compile("(?!<=\d)(\.)(?!\d)")
@@ -252,3 +247,80 @@ class VQAEval:
                 outText[wordId] = self.contractions[word]
         outText = " ".join(outText)
         return outText
+    
+def get_input(sample):
+    images_list = item['images_list']
+    context = item['context']
+    question = 'Question: ' + item['question']
+    answer = item['answer']
+    meta = item['meta']
+
+    needles = meta['needles']
+    choices = meta['choices']
+    choices_image = meta['choices_image_path']
+    
+    flag = 0
+
+    # context
+    num_image_placeholders = context.count(IMAGE_PLACEHOLDER)
+    assert num_image_placeholders == len(images_list)
+
+    # answer
+    if isinstance(answer, int):
+        if choices or choices_image:
+            answer = chr(answer + ord('A'))
+        else:
+            answer = str(answer)
+
+    # # needles
+    # for needle in needles:
+    #     if isinstance(needle, int):
+    #         continue
+
+    #     if needle in context:  # 文本针
+    #         context = context.replace(needle, f' `{needle}` ')
+    #     else:  # 图像针
+    #         # assert os.path.exists(os.path.join(image_dir, needle)), os.path.join(image_dir, needle)
+    #         pass
+
+    # choices
+    # 文字-查找 文字-计数 文字-推理 图像-推理-选项是文字
+    if choices:
+        flag = 1
+        for c_idx, c in enumerate(choices):
+            question = f"{question}\n\n{chr(c_idx + ord('A'))}. {c}"
+        question += "\nAnswer with the option's letter from the given choices directly."
+
+    # choices_image
+    # 图像-推理-选项是图像
+    if choices_image:
+        flag = 1
+        for c_idx, c in enumerate(choices_image):
+            question = f"{question}\n\n{chr(c_idx + ord('A'))}. <image>"
+            images_list.append(c)
+        question += "\nAnswer with the option's letter from the given choices directly."
+
+    # 图像-计数 
+    if len(needles) == 1:
+        flag = 1
+        question += f'There are {str(num_image_placeholders)} pictures.'
+        question += " Please provide an answer in the form of a list like [x, x, ...]. The length of the list should be equal to the number of images. When x=1, it indicates that an image has been inserted at that position; when x=0, it indicates that no image has been inserted at that position."
+        ##注意此处没有\nHow many <image> are inserted in picture?
+    
+    # 图像-查找
+    if len(needles) == 4:
+        flag = 1
+        for c_idx, c in enumerate(needles):
+            question = f"{question}\n\n{chr(c_idx + ord('A'))}. <image>"
+            images_list.append(c)
+        question += "\nAnswer with the option's letter from the given choices directly."
+
+    #与内容有关的问题
+    if flag == 0:
+        question += '\nAnswer the question using a single word or phrase.'
+        
+    return context, images_list, question, answer
+
+
+
+        
