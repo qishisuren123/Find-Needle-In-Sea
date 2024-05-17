@@ -301,7 +301,7 @@ def get_input(item):
         question += "\nAnswer with the option's letter from the given choices directly."
 
     # 图像-计数 
-    elif meta['category']==["insert", "unrelated", "text"]:
+    elif meta['category']==["count", "unrelated", "text"]:
         flag = 1
         question += f'There are {str(num_image_placeholders)} pictures.'
         question += " Please provide an answer in the form of a list like [x, x, ...]. The length of the list should be equal to the number of images. When x=1, it indicates that an image has been inserted at that position; when x=0, it indicates that no image has been inserted at that position."
