@@ -44,8 +44,11 @@ import torch
 from transformers import CLIPProcessor, CLIPModel
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+import json
 import re
 from PIL import Image
+from tools import get_input
+from tqdm import tqdm
 
 # 初始化CLIP模型
 model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
@@ -93,6 +96,7 @@ def rag(text, images, query, n):
             split_chunks = split_text(chunk)
             text_chunks.extend(split_chunks)
     
+    
     # 编码文本和图片
     text_features = encode_text([chunk for chunk in text_chunks if chunk != "<image>"])
     image_features = encode_images(images)
@@ -125,43 +129,35 @@ def rag(text, images, query, n):
     selected_text = []
     selected_images = []
     total_length = 0
-    selected_indices = set()
+    selected_image_indices = set()
+    selected_text_indices = set()
 
     for sim, chunk, idx, chunk_type in combined_similarities:
         if chunk_type == 'image':
             if total_length + 576 <= n:
-                selected_indices.add(idx)
+                selected_image_indices.add(idx)
                 total_length += 576
+                print('after add image', total_length)
         else:
             chunk_length = len(processor.tokenizer.encode(chunk))
             if total_length + chunk_length <= n:
-                selected_indices.add(idx)
+                selected_text_indices.add(idx)
                 total_length += chunk_length
-        if total_length >= n:
-            break
+                print('after add text', total_length)
+        
+        
+    print(total_length)
 
     for i, chunk in enumerate(text_chunks):
         if chunk == "<image>":
-            if img_indices.index(i) in selected_indices:
+            if img_indices.index(i) in selected_image_indices:
                 selected_text.append(chunk)
                 selected_images.append(images[img_indices.index(i)])
         else:
-            if i in selected_indices:
+            if i in selected_text_indices:
                 selected_text.append(chunk)
     
     # 组合成连续的字符串
     final_text = "".join(selected_text)
 
     return final_text, selected_images
-
-# # 示例用法
-# text = "这是<image>一个包含多个段落<image>的文档。<image>这是第二段。<image>这是第三段。"
-# images = ["/mnt/petrelfs/renyiming/dataset/sea-needle/abnormal_pic/apple1.jpg", 
-#           "/mnt/petrelfs/renyiming/dataset/sea-needle/abnormal_pic/banana.jpg",
-#           '/mnt/petrelfs/renyiming/dataset/sea-needle/abnormal_pic/apple2.jpg',
-#           '/mnt/petrelfs/renyiming/dataset/sea-needle/abnormal_pic/apple3.jpg']
-# query = "第二段"
-
-# selected_text, selected_images = rag(text, images, query, 1600)
-# print("Selected Text:", selected_text)
-# print("Selected Images:", selected_images)
