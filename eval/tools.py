@@ -1,6 +1,6 @@
 import re
 
-
+IMAGE_PLACEHOLDER = '<image>'
 def remove_special_chars(s):
     pattern = r"[^a-zA-Z0-9\s]"
     s = re.sub(pattern, "", s)
@@ -292,8 +292,8 @@ def get_input(item):
         question += "\nAnswer with the option's letter from the given choices directly."
 
     # choices_image
-    # 图像-推理-选项是图像
-    if choices_image:
+    # 图像-推理-选项是图像 图像-查找 
+    elif choices_image:
         flag = 1
         for c_idx, c in enumerate(choices_image):
             question = f"{question}\n\n{chr(c_idx + ord('A'))}. <image>"
@@ -301,19 +301,12 @@ def get_input(item):
         question += "\nAnswer with the option's letter from the given choices directly."
 
     # 图像-计数 
-    if len(needles) == 1:
+    elif len(needles) == 1:
         flag = 1
         question += f'There are {str(num_image_placeholders)} pictures.'
         question += " Please provide an answer in the form of a list like [x, x, ...]. The length of the list should be equal to the number of images. When x=1, it indicates that an image has been inserted at that position; when x=0, it indicates that no image has been inserted at that position."
         ##注意此处没有\nHow many <image> are inserted in picture?
     
-    # 图像-查找
-    if len(needles) == 4:
-        flag = 1
-        for c_idx, c in enumerate(needles):
-            question = f"{question}\n\n{chr(c_idx + ord('A'))}. <image>"
-            images_list.append(c)
-        question += "\nAnswer with the option's letter from the given choices directly."
 
     #与内容有关的问题
     if flag == 0:
