@@ -284,7 +284,7 @@ def get_input(item):
     #         pass
 
     # choices
-    # 文字-查找 文字-计数 文字-推理 图像-推理-选项是文字
+    # 文字-计数 文字-推理 图像-推理-选项是文字
     if choices:
         flag = 1
         for c_idx, c in enumerate(choices):
@@ -301,14 +301,14 @@ def get_input(item):
         question += "\nAnswer with the option's letter from the given choices directly."
 
     # 图像-计数 
-    elif len(needles) == 1:
+    elif meta['category']==["insert", "unrelated", "text"]:
         flag = 1
         question += f'There are {str(num_image_placeholders)} pictures.'
         question += " Please provide an answer in the form of a list like [x, x, ...]. The length of the list should be equal to the number of images. When x=1, it indicates that an image has been inserted at that position; when x=0, it indicates that no image has been inserted at that position."
         ##注意此处没有\nHow many <image> are inserted in picture?
     
 
-    #与内容有关的问题
+    #与内容有关的问题 文字-查找
     if flag == 0:
         question += '\nAnswer the question using a single word or phrase.'
         
