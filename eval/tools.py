@@ -248,7 +248,7 @@ class VQAEval:
         outText = " ".join(outText)
         return outText
     
-def get_input(sample):
+def get_input(item):
     images_list = item['images_list']
     context = item['context']
     question = 'Question: ' + item['question']
