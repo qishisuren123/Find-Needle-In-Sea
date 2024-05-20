@@ -1,3 +1,6 @@
+#生成rag所需的caption
+
+
 import torch
 from llava.model.builder import load_pretrained_model
 from llava.mm_utils import get_model_name_from_path
