@@ -185,6 +185,7 @@ class VQAEval:
         answer = self.processDigitArticle(answer)
         if type(gt_answers)==list:
             for i in range(len(gt_answers)):
+                gt_answers[i] = str(gt_answers[i])
                 gt_answers[i] = gt_answers[i].replace("\n", " ")
                 gt_answers[i] = gt_answers[i].replace("\t", " ")
                 gt_answers[i] = gt_answers[i].strip()
@@ -245,13 +246,16 @@ class VQAEval:
         for wordId, word in enumerate(outText):
             if word in self.contractions:
                 outText[wordId] = self.contractions[word]
+
+        outText = [str(text) for text in outText]
         outText = " ".join(outText)
         return outText
     
 def get_input(item):
     images_list = item['images_list']
     context = item['context']
-    question = 'Question: ' + item['question']
+    # question = 'Question: ' + item['question']
+    question = item['question']
     answer = item['answer']
     meta = item['meta']
 
@@ -262,8 +266,8 @@ def get_input(item):
     flag = 0
 
     # context
-    num_image_placeholders = context.count(IMAGE_PLACEHOLDER)
-    assert num_image_placeholders == len(images_list)
+    num_image_placeholders = context.count(IMAGE_PLACEHOLDER) + question.count(IMAGE_PLACEHOLDER)
+    assert num_image_placeholders == len(images_list), f"{num_image_placeholders=}, {len(images_list)=}"
 
     # answer
     if isinstance(answer, int):
@@ -288,7 +292,7 @@ def get_input(item):
     if choices:
         flag = 1
         for c_idx, c in enumerate(choices):
-            question = f"{question}\n\n{chr(c_idx + ord('A'))}. {c}"
+            question = f"{question}\n{chr(c_idx + ord('A'))}. {c}"
         question += "\nAnswer with the option's letter from the given choices directly."
 
     # choices_image
@@ -296,15 +300,15 @@ def get_input(item):
     elif choices_image:
         flag = 1
         for c_idx, c in enumerate(choices_image):
-            question = f"{question}\n\n{chr(c_idx + ord('A'))}. <image>"
+            question = f"{question}\n{chr(c_idx + ord('A'))}. <image>"
             images_list.append(c)
         question += "\nAnswer with the option's letter from the given choices directly."
 
     # 图像-计数 
     elif meta['category']==["count", "unrelated", "text"]:
         flag = 1
-        question += f'There are {str(num_image_placeholders)} pictures.'
-        question += " Please provide an answer in the form of a list like [x, x, ...]. The length of the list should be equal to the number of images. When x=1, it indicates that an image has been inserted at that position; when x=0, it indicates that no image has been inserted at that position."
+        question += f'\nThere are {str(num_image_placeholders)} pictures.'
+        question += " \nPlease provide an answer in the form of a list like [x, x, ...]. The length of the list should be equal to the number of images. When x=1, it indicates that an image has been inserted at that position; when x=0, it indicates that no image has been inserted at that position."
         ##注意此处没有\nHow many <image> are inserted in picture?
     
 

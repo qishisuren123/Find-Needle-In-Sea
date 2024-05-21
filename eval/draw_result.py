@@ -4,10 +4,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import json
+import argparse
 
 from tools import remove_special_chars, has_word, VQAEval
 
 tiankong = VQAEval()
+
+parser = argparse.ArgumentParser(description="Run model inference.")
+parser.add_argument('--ans-dir', type=str, default='outputs_8')
+args = parser.parse_args()
+
 
 def parse_english_number_to_int(word):
     """Converts common English number words to their integer values."""
@@ -53,16 +59,19 @@ x_bins = [1000, 2000, 3000, 5000, 9000, 15000, 26000, 44000, 75000]
 # y 的划分档位
 y_interval = 0.2
 
-result_path_list = os.listdir('/mnt/petrelfs/renyiming/dataset/sea-needle/eval/answer')
-# result_path_list = os.listdir('/mnt/petrelfs/renyiming/dataset/sea-needle/eval/ans_tem')
+args.save_dir = os.path.join(args.ans_dir, 'visualization')
+os.makedirs(args.save_dir, exist_ok=True)
+result_path_list = os.listdir(args.ans_dir)
 for file_name in result_path_list:
     # 初始化二维数组，x 划分为5档，y 划分为10档（因为 0-1 划分为0.1的10个区间）
     total = np.zeros((len(x_bins) + 1, int(1 / y_interval)))
     correct = np.zeros((len(x_bins) + 1, int(1 / y_interval)))
     # jsonl 文件路径
-    jsonl_file_path = '/mnt/petrelfs/renyiming/dataset/sea-needle/eval/answer/' + file_name
-    # jsonl_file_path = '/mnt/petrelfs/renyiming/dataset/sea-needle/eval/ans_tem/' + file_name
-    file_path = '/mnt/petrelfs/renyiming/dataset/sea-needle/eval/result/' + file_name[:-4] + 'v2' + '.jpg'
+    jsonl_file_path = os.path.join(args.ans_dir, file_name)
+    file_path = os.path.join(args.save_dir, file_name.replace('.jsonl', '.png'))
+
+    if os.path.isdir(jsonl_file_path):
+        continue
 
     # 读取 jsonl 文件
     with open(jsonl_file_path, 'r') as file:
@@ -89,36 +98,28 @@ for file_name in result_path_list:
             # 确定 y 的档位
             y_index = int(y / y_interval)
             # y_index = 0
-            try:
-                # 将 z 值加到对应的档位中
-                total[x_index][y_index] += 1
-            except Exception as e:
-                print(e)
-                print(file_name)
-                print(y)
-                print(x)
-                print(answer)
-                print(z)
-                print('\n')
+            # 将 z 值加到对应的档位中
+            total[x_index][y_index] += 1
 
+            # print(f'{answer=}, pred={z}, is_matched={bool(yes_or_no(answer, z))}')
             if yes_or_no(answer, z):
-                if y > 0.5:
-                    print(file_name)
-                    print(y)
-                    print(x)
-                    print(answer)
-                    print(z)
-                    print('\n')
+                # if y > 0.5:
+                #     print(file_name)
+                #     print(y)
+                #     print(x)
+                #     print(answer)
+                #     print(z)
+                #     print('\n')
                 correct[x_index][y_index] += 1
 
         result = np.divide(correct, total, out=np.zeros_like(correct), where=total != 0)
 
     # 打印结果
-    print(result)
+    # print(result)
 
     # # Plot a heatmap for a numpy array:
     uniform_data = result[1:].T
-    print(uniform_data)
+    # print(uniform_data)
 
     # Define the custom color map
     from matplotlib.colors import LinearSegmentedColormap
