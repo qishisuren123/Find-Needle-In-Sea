@@ -11,7 +11,7 @@ from tools import remove_special_chars, has_word, VQAEval
 tiankong = VQAEval()
 
 parser = argparse.ArgumentParser(description="Run model inference.")
-parser.add_argument('--ans-dir', type=str, default='outputs_8')
+parser.add_argument('--ans-dir', type=str, default='outputs_64')
 args = parser.parse_args()
 
 
@@ -35,22 +35,18 @@ def yes_or_no(answer, response):
             return int(response) == answer
         else:
             # Convert English word to number
-            numeric_value = parse_english_number_to_int(response)
-            if numeric_value is not None:
-                return numeric_value == answer
-            else:
-                # Try parsing compound numbers
-                parts = response.lower().split()
-                if len(parts) > 1:
-                    # Example: 'twenty one' -> 21
-                    total = 0
-                    for part in parts:
-                        value = parse_english_number_to_int(part)
-                        if value is None:
-                            return False
-                        total = total * 10 if total >= 20 else total + value
-                    return total == answer
+            response_orig = response
+            response = response.lower()
+            if response.find('.') != -1:
+                response = response.split('.')[0]
+                response = response.replace(',', '')
+                response = response.strip()
+            if response == 'none':
                 return False
+            if len(response) != 1:
+                print(f"Fail to parse {response_orig}")
+                return False
+            return (ord(response) - ord('a')) == answer
     else:
         return tiankong.evaluate(response, answer)
 
@@ -116,6 +112,9 @@ for file_name in result_path_list:
 
     # 打印结果
     # print(result)
+    print(file_name)
+    print(total)
+    print()
 
     # # Plot a heatmap for a numpy array:
     uniform_data = result[1:].T

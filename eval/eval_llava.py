@@ -3,6 +3,7 @@ sys.path.append('3rdparty/LLaVA')
 
 import os
 import json
+import time
 import argparse
 import subprocess
 import torch
@@ -88,6 +89,7 @@ def main(args):
     }
     device_map['model.vision_tower'] = visible_devices[0]
     device_map['vision_tower'] = visible_devices[0]
+    device_map['vision_model'] = visible_devices[0]
     device_map['model.mm_projector'] = visible_devices[0]
     device_map['model.norm'] = visible_devices[0]
     device_map['model.image_newline'] = visible_devices[0]
@@ -105,6 +107,7 @@ def main(args):
         # device=args.local_rank,
         device_map=device_map,
     )
+    tokenizer.model_max_length = 256000
     model.config.tokenizer_model_max_length = 256000
 
     print(
@@ -118,13 +121,18 @@ def main(args):
     if args.rag == "True":
         ans_name = model_name + 'ragged_' + mode
     ans_file = os.path.join(args.ans_file, ans_name)
+    temp_dir = f"temp_{model_name}_{mode.replace('.jsonl', '')}"
+    local_ans_file = os.path.join(args.ans_file, temp_dir, f"{args.rank}_{args.world_size}_{ans_name}")
     print('model:', model_name)
     print('mode', mode)
     print('context_len', context_len)
-        
+
     os.makedirs(args.ans_file, exist_ok=True)
+    os.makedirs(os.path.join(args.ans_file, temp_dir), exist_ok=True)
     with open(args.sample_file, 'r') as file:
         lines = file.readlines()
+
+    local_file = open(local_ans_file, 'w')
 
     outputs_list = []
     for data in tqdm(lines[args.rank::args.world_size], desc=f"Processing {ans_name}", disable=args.rank!=0):
@@ -189,27 +197,36 @@ def main(args):
             outputs = 'None'
 
         outputs = outputs.strip()
-        print(outputs)
+        print(f"{input_ids.shape=}, totoal_tokens={sample['meta']['context_length']}, {outputs=}")
         outputs_list.append(json.dumps({
             "question_id": sample['id'],
+            "question": question,
             "answer": sample['answer'],
             "response": outputs,
             'total_tokens':sample['meta']['context_length'],
             'position':sample['meta']['placed_depth']
         }) + "\n")
+        local_file.write(outputs_list[-1])
+        local_file.flush()
+
     print(f"Rank {args.rank} Finish")
+    local_file.close()
 
-    if args.world_size > 1:
-        merged_outputs = [None for _ in range(args.world_size)]
-        torch.distributed.all_gather_object(merged_outputs, outputs_list)
+    time.sleep(60)
+    torch.distributed.barrier()
 
-        merged_outputs = sum(merged_outputs, start=[])
+    # if args.world_size > 1:
+    #     merged_outputs = [None for _ in range(args.world_size)]
+    #     torch.distributed.all_gather_object(merged_outputs, outputs_list)
+
+    #     merged_outputs = sum(merged_outputs, start=[])
 
     if args.rank == 0:
-        print(f"Rank {args.rank} begin to save outputs...")
-        with open(ans_file, 'w') as file:
-            for outputs in merged_outputs:
-                file.write(outputs)
+        print(f"Rank {args.rank} begin to merge outputs...")
+        os.system(f"cat {os.path.join(args.ans_file, temp_dir)}/* > {ans_file}")
+        # with open(ans_file, 'w') as file:
+        #     for outputs in merged_outputs:
+        #         file.write(outputs)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run model inference.")

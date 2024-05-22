@@ -262,19 +262,17 @@ def get_input(item):
     needles = meta['needles']
     choices = meta['choices']
     choices_image = meta['choices_image_path']
-    
-    flag = 0
 
     # context
     num_image_placeholders = context.count(IMAGE_PLACEHOLDER) + question.count(IMAGE_PLACEHOLDER)
     assert num_image_placeholders == len(images_list), f"{num_image_placeholders=}, {len(images_list)=}"
 
     # answer
-    if isinstance(answer, int):
-        if choices or choices_image:
-            answer = chr(answer + ord('A'))
-        else:
-            answer = str(answer)
+    # if isinstance(answer, int):
+    #     if choices or choices_image:
+    #         answer = chr(answer + ord('A'))
+    #     else:
+    #         answer = str(answer)
 
     # # needles
     # for needle in needles:
@@ -287,35 +285,24 @@ def get_input(item):
     #         # assert os.path.exists(os.path.join(image_dir, needle)), os.path.join(image_dir, needle)
     #         pass
 
-    # choices
-    # 文字-计数 文字-推理 图像-推理-选项是文字
+    # 图像查找
     if choices:
-        flag = 1
         for c_idx, c in enumerate(choices):
             question = f"{question}\n{chr(c_idx + ord('A'))}. {c}"
         question += "\nAnswer with the option's letter from the given choices directly."
-
-    # choices_image
-    # 图像-推理-选项是图像 图像-查找 
+    # 图像推理
     elif choices_image:
-        flag = 1
         for c_idx, c in enumerate(choices_image):
             question = f"{question}\n{chr(c_idx + ord('A'))}. <image>"
             images_list.append(c)
         question += "\nAnswer with the option's letter from the given choices directly."
-
-    # 图像-计数 
-    elif meta['category']==["count", "unrelated", "text"]:
-        flag = 1
-        question += f'\nThere are {str(num_image_placeholders)} pictures.'
-        question += " \nPlease provide an answer in the form of a list like [x, x, ...]. The length of the list should be equal to the number of images. When x=1, it indicates that an image has been inserted at that position; when x=0, it indicates that no image has been inserted at that position."
-        ##注意此处没有\nHow many <image> are inserted in picture?
-    
-
-    #与内容有关的问题 文字-查找
-    if flag == 0:
+    # 图像计数，文本计数
+    elif isinstance(answer, list):
+        pass
+    # 文本查找，文本推理
+    else:
         question += '\nAnswer the question using a single word or phrase.'
-        
+
     return context, images_list, question, answer
 
 
