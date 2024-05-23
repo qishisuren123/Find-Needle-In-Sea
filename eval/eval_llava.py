@@ -113,6 +113,10 @@ def main(args):
     model.config.max_length = 256000
     model.config.tokenizer_model_max_length = 256000
 
+    if model.config.image_aspect_ratio == 'anyres':
+        model.config.image_aspect_ratio = 'pad'
+        model.config.mm_patch_merge_type = 'flat'
+
     print(
         f"Rank [{args.rank}] "
         f"Begin to eval model {args.model_path} on task {mode.split('.')[0]}, "

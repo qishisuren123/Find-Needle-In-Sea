@@ -30,12 +30,12 @@ def parse_english_number_to_int(word):
     return mapping.get(word, None)
 
 def yes_or_no(answer, response):
+    response_orig = response
     if isinstance(answer, int):
         if response.isdigit():
             return int(response) == answer
         else:
             # Convert English word to number
-            response_orig = response
             response = response.lower()
             if response.find('.') != -1:
                 response = response.split('.')[0]
@@ -47,6 +47,11 @@ def yes_or_no(answer, response):
                 print(f"Fail to parse {response_orig}")
                 return False
             return (ord(response) - ord('a')) == answer
+    elif isinstance(answer, str):
+        try:
+            response = json.loads(response)
+        except Exception as e:
+            print(f"Fail to parse {response_orig} Exception: {e}")
     else:
         return tiankong.evaluate(response, answer)
 
