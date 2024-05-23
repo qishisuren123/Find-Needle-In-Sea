@@ -127,6 +127,37 @@ Give a concise summary of the <image> that is well optimized for retrieval.'''
                 
             ans_file.write(json.dumps(sample) + "\n")
 
+##上面代码用于生产图片的caption 
+##下面用于生产rag后的jsonl文件        
+# import os
+# import json
+# from rag import rag
+# import argparse
+# from tqdm import tqdm
+
+# def get_qs(sample):
+#     if sample['meta']['choices'] == None:
+#         return sample['question']
+#     else:
+#         qs = sample['question'] + "(Please choose an object from:"
+#         for it in sample['meta']['choices']:
+#             qs = qs + it + ', '
+#         qs += ")"
+#         return qs
+            
+# def pro_rag(args):
+#     mode = os.path.basename(args.sample_file)
+#     ans_name = 'ragged_' + mode[3:]
+#     ans_file = os.path.join(args.ans_file, ans_name)  
+#     print('begin')
+#     with open(args.sample_file, 'r') as file, open(ans_file, 'w') as ans_file:
+#         for data in tqdm(file, desc="Processing "+ans_name):
+#             sample = json.loads(data)
+#             question = get_qs(sample)
+#             sample['context'] = rag(sample['context'], question)
+                            
+#             ans_file.write(json.dumps(sample) + "\n")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run model inference.")
     parser.add_argument('--model_path', type=str, default='/mnt/petrelfs/renyiming/model/LLaVA1/llava_vila13b')
@@ -135,3 +166,4 @@ if __name__ == "__main__":
     parser.add_argument('--ans_file', type=str, default= '/mnt/petrelfs/renyiming/dataset/sea-needle/eval/answer/llava-it.json')
     args = parser.parse_args()
     main_rag(args)
+    # pro_rag(args)
