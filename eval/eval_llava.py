@@ -30,12 +30,14 @@ CONV_TEMPLATE = {
     'llava-v1.5-13b': 'vicuna_v1',
     'llava-v1.6-vicuna-13b': 'vicuna_v1',
     'llava-v1.6-34b': 'chatml_direct',
+    'VILA1.0-13b-llava': 'vicuna_v1',
 }
 
 NUM_HIDDEN_LAYERS = {
     'llava-v1.5-13b': 40,
     'llava-v1.6-vicuna-13b': 40,
     'llava-v1.6-34b': 60,
+    'VILA1.0-13b-llava': 40,
 }
 
 def load_image(image_file):
@@ -108,6 +110,7 @@ def main(args):
         device_map=device_map,
     )
     tokenizer.model_max_length = 256000
+    model.config.max_length = 256000
     model.config.tokenizer_model_max_length = 256000
 
     print(
@@ -211,22 +214,6 @@ def main(args):
 
     print(f"Rank {args.rank} Finish")
     local_file.close()
-
-    time.sleep(60)
-    torch.distributed.barrier()
-
-    # if args.world_size > 1:
-    #     merged_outputs = [None for _ in range(args.world_size)]
-    #     torch.distributed.all_gather_object(merged_outputs, outputs_list)
-
-    #     merged_outputs = sum(merged_outputs, start=[])
-
-    if args.rank == 0:
-        print(f"Rank {args.rank} begin to merge outputs...")
-        os.system(f"cat {os.path.join(args.ans_file, temp_dir)}/* > {ans_file}")
-        # with open(ans_file, 'w') as file:
-        #     for outputs in merged_outputs:
-        #         file.write(outputs)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run model inference.")
