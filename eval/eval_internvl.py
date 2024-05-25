@@ -2,6 +2,7 @@ import sys
 sys.path.append('3rdparty/LLaVA')
 
 import os
+import io
 import json
 import argparse
 import subprocess
@@ -15,6 +16,9 @@ from torchvision.transforms.functional import InterpolationMode
 
 from rag import rag
 from tools import get_input
+
+from petrel_client.client import Client
+client = Client()
 
 # 设置 max_split_size_mb
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
@@ -90,7 +94,14 @@ def dynamic_preprocess(image, min_num=1, max_num=6, image_size=448, use_thumbnai
 
 
 def load_image(image_file, dynamic_image_size=True, input_size=448, max_num=6):
-    image = Image.open(image_file).convert('RGB')
+    if 's3:' in image_file:
+        data_bytes = client.get(image_file)
+        assert data_bytes is not None, f'fail to load {image_file}'
+        data_buff = io.BytesIO(data_bytes)
+        image = Image.open(data_buff).convert('RGB')
+    else:
+        image = Image.open(image_file).convert('RGB')
+
     transform = build_transform(input_size=input_size)
     if dynamic_image_size:
         images = dynamic_preprocess(image, image_size=input_size, use_thumbnail=True, max_num=max_num)
@@ -265,10 +276,17 @@ def main(args):
         sample['context'] = sample['context'].replace('</s>', '')
         question = sample['question']
 
+        images_list = [img for img in sample['images_list']]
+        images_list = [
+            os.path.join('s3://public-dataset/OBELISC/raw-images', i[len('obelisc/'):]) if i.startswith('obelisc/') else i
+            for i in images_list
+        ]
+        images_list = [
+            os.path.join(args.image_file, i) if 's3://' not in i else i
+            for i in images_list
+        ]
+
         if args.rag == 'True':
-            images_list = []
-            for img in sample['images_list']:
-                images_list.append(os.path.join(args.image_file, img))
             sample['context'], images_list = rag(sample['context'], images_list, question, 3000)
             print('ragging')
             print('len(image):', len(images_list))
@@ -278,11 +296,8 @@ def main(args):
         # 加载图像
         pixel_values = []
         num_patches_list = []
-        for img in sample['images_list']:
-            curr_pixel_values = load_image(
-                os.path.join(args.image_file, img),
-                dynamic_image_size=False,
-            )
+        for img in images_list:
+            curr_pixel_values = load_image(img, dynamic_image_size=False)
             pixel_values.append(curr_pixel_values)
             num_patches_list.append(len(curr_pixel_values))
         pixel_values = torch.cat(pixel_values)

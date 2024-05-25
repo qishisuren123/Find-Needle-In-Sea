@@ -2,6 +2,7 @@ import sys
 sys.path.append('3rdparty/LLaVA')
 
 import os
+import io
 import json
 import time
 import argparse
@@ -23,6 +24,9 @@ from llava.conversation import conv_templates
 from rag import rag
 from tools import get_input
 
+from petrel_client.client import Client
+client = Client()
+
 # 设置 max_split_size_mb
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
@@ -41,7 +45,13 @@ NUM_HIDDEN_LAYERS = {
 }
 
 def load_image(image_file):
-    image = Image.open(image_file).convert("RGB")
+    if 's3:' in image_file:
+        data_bytes = client.get(image_file)
+        assert data_bytes is not None, f'fail to load {image_file}'
+        data_buff = io.BytesIO(data_bytes)
+        image = Image.open(data_buff).convert('RGB')
+    else:
+        image = Image.open(image_file).convert('RGB')
     return image
 
 def load_images(image_files):
@@ -148,9 +158,15 @@ def main(args):
         sample['context'] = sample['context'].replace('</s>', '')
         question = sample['question']
 
-        images_list = []
-        for img in sample['images_list']:
-            images_list.append(os.path.join(args.image_file, img))
+        images_list = [img for img in sample['images_list']]
+        images_list = [
+            os.path.join('s3://public-dataset/OBELISC/raw-images', i[len('obelisc/'):]) if i.startswith('obelisc/') else i
+            for i in images_list
+        ]
+        images_list = [
+            os.path.join(args.image_file, i) if 's3://' not in i else i
+            for i in images_list
+        ]
 
         if args.rag == 'True':
             sample['context'], images_list = rag(sample['context'], images_list, question, 3000)
