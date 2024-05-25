@@ -47,7 +47,7 @@ def yes_or_no(answer, response):
                 print(f"Fail to parse {response_orig}")
                 return False
             return (ord(response) - ord('a')) == answer
-    elif isinstance(answer, str):
+    elif isinstance(answer, list):
         try:
             response = json.loads(response)
         except Exception as e:

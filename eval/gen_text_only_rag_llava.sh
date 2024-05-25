@@ -1,18 +1,21 @@
 #!/bin/bash
 
 PARTITION=${PARTITION:-"Intern5"}
-GPUS=${GPUS:-512}
+GPUS=${GPUS:-256}
 GPUS_PER_NODE=${GPUS_PER_NODE:-8}
-GPUS_PER_TASK=${GPUS_PER_TASK:-4}
+GPUS_PER_TASK=${GPUS_PER_TASK:-2}
 QUOTA_TYPE=${QUOTA_TYPE:-"reserved"}
 
 # 常量路径
 image_file='data'
-ans_file="outputs_${GPUS}"
+ans_file="outputs_text_only_rag_${GPUS}"
 
 # 循环不同的数据集和答案文件
 declare -a model_paths=( \
-    'ckpts/OpenGVLab/InternVL-Chat-V1-5' \
+    # 'ckpts/liuhaotian/llava-v1.5-13b' \
+    # 'ckpts/liuhaotian/llava-v1.6-vicuna-13b' \
+    # 'ckpts/Efficient-Large-Model/VILA1.0-13b-llava' \
+    'ckpts/liuhaotian/llava-v1.6-34b' \
 )
 
 declare -a split_files=( \
@@ -23,12 +26,6 @@ declare -a split_files=( \
     # 'data/annotations/ci.jsonl' \
     'data/annotations/infer-choose.jsonl' \
     'data/annotations/visual-reasoning.jsonl' \
-    # 'data/annotations/ragged_it.jsonl' \
-    # 'data/annotations/ragged_ii.jsonl' \
-    # 'data/annotations/ragged_ct.jsonl' \
-    # 'data/annotations/ragged_ci.jsonl' \
-    # 'data/annotations/ragged__infer-choose.jsonl' \
-    # 'data/annotations/ragged__visual-reasoning.jsonl' \
 )
 
 mkdir -p logs_${GPUS}
@@ -48,15 +45,14 @@ for ((i=0; i<${#model_paths[@]}; i++)); do
             --ntasks-per-node=$((GPUS_PER_NODE / GPUS_PER_TASK)) \
             --quotatype=${QUOTA_TYPE} \
             --job-name="eval_${split_name}" \
-            python -u eval/eval_internvl.py \
+            python -u eval/gen_text_only_rag_jsonl.py \
             --model_path $model_path \
             --image_file $image_file \
             --sample_file $split_file \
             --ans_file $ans_file \
-            --rag False \
             --num-gpus-per-rank ${GPUS_PER_TASK} \
-            2>&1 | tee -a "logs_${GPUS}/${model_name}_${split_name}_wo_rag.log"
+            2>&1 | tee -a "logs_${GPUS}/${model_name}_${split_name}_gen_text_only_rag.log"
 
-        cat ${ans_file}/temp_${model_name}_${split_name}/* > ${ans_file}/${model_name}_${split_name}.jsonl
+        cat ${ans_file}/temp_ragged_${model_name}_${split_name}/* > ${ans_file}/${model_name}_ragged_${split_name}.jsonl
     done
 done

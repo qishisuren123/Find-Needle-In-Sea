@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PARTITION=${PARTITION:-"Intern5"}
-GPUS=${GPUS:-64}
+GPUS=${GPUS:-256}
 GPUS_PER_NODE=${GPUS_PER_NODE:-8}
 GPUS_PER_TASK=${GPUS_PER_TASK:-4}
 QUOTA_TYPE=${QUOTA_TYPE:-"reserved"}
@@ -13,10 +13,10 @@ ans_file="outputs_${GPUS}"
 # 循环不同的数据集和答案文件
 declare -a model_paths=( \
     # 'ckpts/liuhaotian/llava-v1.5-13b' \
-    'ckpts/liuhaotian/llava-v1.6-vicuna-13b' \
-    # 'ckpts/Efficient-Large-Model/VILA1.0-13b-llava' \
+    # 'ckpts/liuhaotian/llava-v1.6-vicuna-13b' \
+    'ckpts/Efficient-Large-Model/VILA1.0-13b-llava' \
     # 'ckpts/Efficient-Large-Model/VILA1.5-13b' \
-    # 'ckpts/liuhaotian/llava-v1.6-34b' \
+    'ckpts/liuhaotian/llava-v1.6-34b' \
     # 'ckpts/Efficient-Large-Model/VILA1.5-40b' \
 )
 

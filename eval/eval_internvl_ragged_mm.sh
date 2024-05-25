@@ -1,14 +1,14 @@
 #!/bin/bash
 
 PARTITION=${PARTITION:-"Intern5"}
-GPUS=${GPUS:-512}
+GPUS=${GPUS:-256}
 GPUS_PER_NODE=${GPUS_PER_NODE:-8}
 GPUS_PER_TASK=${GPUS_PER_TASK:-4}
 QUOTA_TYPE=${QUOTA_TYPE:-"reserved"}
 
 # 常量路径
 image_file='data'
-ans_file="outputs_${GPUS}"
+ans_file="outputs_ragged_mm_${GPUS}"
 
 # 循环不同的数据集和答案文件
 declare -a model_paths=( \
@@ -31,7 +31,7 @@ declare -a split_files=( \
     # 'data/annotations/ragged__visual-reasoning.jsonl' \
 )
 
-mkdir -p logs_${GPUS}
+mkdir -p logs_ragged_mm_${GPUS}
 
 # 确保 split_files 和 ans_files 数组长度相等
 for ((i=0; i<${#model_paths[@]}; i++)); do
@@ -53,10 +53,10 @@ for ((i=0; i<${#model_paths[@]}; i++)); do
             --image_file $image_file \
             --sample_file $split_file \
             --ans_file $ans_file \
-            --rag False \
+            --rag True \
             --num-gpus-per-rank ${GPUS_PER_TASK} \
-            2>&1 | tee -a "logs_${GPUS}/${model_name}_${split_name}_wo_rag.log"
+            2>&1 | tee -a "logs_ragged_mm_${GPUS}/${model_name}_${split_name}_wo_rag.log"
 
-        cat ${ans_file}/temp_${model_name}_${split_name}/* > ${ans_file}/${model_name}_${split_name}.jsonl
+        cat ${ans_file}/temp_${model_name}_${split_name}/* > ${ans_file}/${model_name}_ragged_${split_name}.jsonl
     done
 done

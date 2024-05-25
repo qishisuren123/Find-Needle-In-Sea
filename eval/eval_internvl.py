@@ -89,10 +89,13 @@ def dynamic_preprocess(image, min_num=1, max_num=6, image_size=448, use_thumbnai
     return processed_images
 
 
-def load_image(image_file, input_size=448, max_num=6):
+def load_image(image_file, dynamic_image_size=True, input_size=448, max_num=6):
     image = Image.open(image_file).convert('RGB')
     transform = build_transform(input_size=input_size)
-    images = dynamic_preprocess(image, image_size=input_size, use_thumbnail=True, max_num=max_num)
+    if dynamic_image_size:
+        images = dynamic_preprocess(image, image_size=input_size, use_thumbnail=True, max_num=max_num)
+    else:
+        images = [image]
     pixel_values = [transform(image) for image in images]
     pixel_values = torch.stack(pixel_values)
     return pixel_values
@@ -276,7 +279,10 @@ def main(args):
         pixel_values = []
         num_patches_list = []
         for img in sample['images_list']:
-            curr_pixel_values = load_image(os.path.join(args.image_file, img))
+            curr_pixel_values = load_image(
+                os.path.join(args.image_file, img),
+                dynamic_image_size=False,
+            )
             pixel_values.append(curr_pixel_values)
             num_patches_list.append(len(curr_pixel_values))
         pixel_values = torch.cat(pixel_values)

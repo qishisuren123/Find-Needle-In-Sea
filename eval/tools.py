@@ -265,7 +265,7 @@ def get_input(item):
 
     # context
     num_image_placeholders = context.count(IMAGE_PLACEHOLDER) + question.count(IMAGE_PLACEHOLDER)
-    assert num_image_placeholders == len(images_list), f"{num_image_placeholders=}, {len(images_list)=}"
+    assert num_image_placeholders == len(images_list), f"{context=}\n{num_image_placeholders=}, {len(images_list)=}"
 
     # answer
     # if isinstance(answer, int):
